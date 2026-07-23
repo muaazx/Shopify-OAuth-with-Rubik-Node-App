@@ -269,7 +269,7 @@ app.post('/api/rubikchat/setup', async (req, res) => {
     }
 
     // 3. Save to database
-    await prisma.rubikchat_organizations.upsert({
+    const orgRecord = await prisma.rubikchat_organizations.upsert({
       where: { store_url: shop },
       update: {
         email,
@@ -285,6 +285,80 @@ app.post('/api/rubikchat/setup', async (req, res) => {
         token,
       }
     });
+
+    // 4. Create Agent
+    const storeName = shopifyRecord.store_name || shopifyRecord.store_url;
+    const storeSlug = storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+    const agentForm = new FormData();
+    agentForm.append('website', `[{"url":"https://${shopifyRecord.store_url}","content":"${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing\\nAutomate customer service, capture more leads and boost sales with ${storeName} AI Agents. Provide instant support, reduce costs and grow your business.\\nBoost sales by 20x and cut support costs. Connect your knowledge base and let ${storeName} handle your entire customer journey automatically.\\nDeploy autonomous AI agents that qualify leads, close sales, and provide 24/7 support across WhatsApp, Web, and Social Media. Stop chatting, start converting.\\nhttps://rubikchat.com/images/logo/rubik-chat.png\\nhttps://rubikchat.com/images/logo/rubik-chat.png\\n\\nSolutions\\nProducts\\nResources\\nPricing\\nLog inGet Started\\nSolutions\\nProducts\\nPricing\\nResources\\nGet Started Free\\n\\nNo credit card required · 14-day free trial\\n\\nThe World’s Most Powerful AI Agents for Customer Service.\\n\\nScale your business, convert more leads, cut support costs, and boost customer loyalty with ${storeName}’s autonomous AI Agents built for powerful, human-like customer service.\\n\\nBuild Your Agent FreeBook a Demo\\nHi :wave:\\n\\nWelcome to Demo Industries Ltd.\\n\\nPlace / Modify OrderCheck Order StatusGet a QuoteTalk to an Expert\\nLosing Leads And Spending Too Much Time\\nOn Customer Service?\\n\\nMeet autonomous AI Agents that don’t just chat — they take action, qualify leads, close sales, and resolve support issues instantly.\\n\\nGenerate Leads\\n5× More Leads — Automatically\\n\\nDeploy AI Agents that engage visitors, ask smart qualifying questions, and guide them toward conversions with human-like precision.\\n\\nBoost Sales\\nConvert High-Intent Buyers in Minutes\\n\\nYour AI Sales Agents handle objections, recommend products, and move prospects through the funnel faster — boosting sales up to 20×.\\n\\n24/7 Customer Support\\nInstant Answers. Real Conversations. Zero Wait.\\n\\nProvide around-the-clock support with AI Agents that understand context, resolve issues, and offer human-level service—without human costs.\\n\\nTry ${storeName} Free\\nSet Up Your Business with ${storeName}'s AI\\nChatbot Solutions\\n\\n${storeName} offers advanced AI chatbot solutions that transform how you interact with your customers and streamline your business processes.\\n\\nEfficient Automation\\n\\nAutomate tasks and interactions to enhance productivity and user engagement.\\n\\nBrand Aligned\\n\\nConfigure chatbot interactions to align with your brand’s personality.\\n\\nSeamless Integration\\n\\nConnects with over 400 apps, integrating effortlessly with your existing systems.\\n\\nYour AI Agents Handle the Work — So Your Team Can Focus on Growth\\n\\nAutomate conversations, actions, and workflows across the entire customer journey — reducing workload, cutting support costs, and boosting performance instantly.\\n\\nBuilt-in CRM\\n\\nStay organized and productive with a CRM that’s part of your chat platform. No extra tools, no switching tabs — just smarter selling.\\n\\nExplore more\\nBuilt-in Omnichannel\\n\\nFrom DMs to live chat, engage customers consistently across every touchpoint with one integrated solution.\\n\\nExplore more\\nBuilt-in MCP\\n\\nScope AI actions with precision — whether it’s sending updates, scheduling meetings, or managing integrations — all within ${storeName}.\\n\\nExplore more\\n\\nHow ${storeName} Works\\n\\nImprove Productivity with ${storeName}'s\\n\\n${storeName}'s uses advanced AI technology to automate and streamline your business interactions. Here’s how it typically works:\\n\\n01 -Train Your Agents\\nUpload and organize your knowledge sources — from files and plain text to website URLs or Notion pages. Our platform lets your AI agents learn directly from your business content, so they can accurately answer questions, follow your brand voice, and deliver reliable responses every time.\\n02 -Connect Your Channels\\n03 -Set Up Your Workflows\\nSee ${storeName} AI Agents in Action\\n\\nReal businesses using autonomous AI Agents to convert leads, boost sales, and automate support.\\n\\nAI Chatbot for Pet Grooming | Smarter Bookings & Happier Pets\\nThe Ultimate Chatbot for Fitness Studios & Gyms :weight_lifter: | Boost Sign-ups & Retention\\n${storeName} AI for Printing Shops :printer: | Smart Chatbot Demo for Faster Orders & Happier Customers\\nBuild an AI Chatbot for Dental Clinics | ${storeName} Demo for Bright Smile Dental :tooth::robot_face:\\nBuild Your Fashion Chatbot with AI | Automate Sales & Customer Support\\nAI Chatbot for Cleaning Services | Automate Bookings & Customer Support :robot_face::sparkles:\\nTalk to Experts\\nNot Sure Where to Start?\\nOur experts will help you design the perfect omnichannel strategy for your business Free consultation, no commitment required\\nTalk to an Expert\\n\\nProvide instant, accurate assistance to your users, reducing response times and enhancing satisfaction.\\n\\nQuick Links\\nBook a Consultation\\nUses Guide\\nPrivacy Policy\\nTerms of Service\\nCookie Policy\\nGDPR\\nData Processing Agreement\\nContact\\n${storeName}, LLC\\n1111B S Governors Ave STE 25390\\nDover, DE 19904\\nEmail: support@rubikchat.com\\nFollow Us\\n© 2026 ${storeName}. All rights reserved.","size":4843,"is_deleted":false,"is_fetched":true}]`);
+    agentForm.append('agentType', 'website');
+    agentForm.append('instructions', `You are the professional AI assistant for ${storeName}.
+1. Role & Identity
+- You are the official AI assistant representing ${storeName}.
+- You act as the primary digital contact for all user inquiries.
+- Your primary goal: provide accurate information, answer questions, and guide users to take action.
+2. Tone & Style
+- Professional, clear, and respectful at all times.
+- Use proper grammar and complete sentences.
+- Avoid slang, humor, or overly casual language.
+- Use bullet points or numbered steps when presenting multiple items.
+3. Opening Behavior
+- When a user sends their FIRST message or greeting (e.g., "hi", "hello"), you MUST:
+  a) Greet them warmly.
+  b) Introduce yourself: "I am your AI assistant for ${storeName}."
+  c) Briefly state what you can help with.
+  d) Ask how you can assist them today.
+4. Grounding & Accuracy
+- You MUST ONLY answer factual questions based on the provided knowledge base and enabled tools.
+- If a factual question is NOT in your knowledge base or tools, say: "I don't have that information right now, but I'd be happy to connect you with our team."
+- Never guess, fabricate, or assume factual information.
+- Avoid off-topic discussions unrelated to ${storeName} and its services.
+- IMPORTANT: Short conversational replies like "ok", "yes", "sure", "great", "sounds good", "proceed", "go ahead" are NOT questions. They are confirmations. Always treat them as the user agreeing to continue — never respond with "I can't help with that". Instead, continue guiding the user through the next step of the current workflow.
+5. Conversation Best Practices
+- Always respond in the same language the user is writing in.
+- You are encouraged to use relevant emojis to make the conversation engaging and friendly.
+- After completing any task, ask: "Is there anything else I can help you with?"
+- If a user seems stuck or confused, proactively offer guidance.
+- Keep responses concise — avoid walls of text unless the user asks for detail.
+5. About ${storeName}
+${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing`);
+    agentForm.append('temperature', '0');
+    agentForm.append('llm', 'gpt-4o-mini');
+    agentForm.append('initial_messages', '["Welcome :wave: I\'m here to help you explore our website, services, and answers to your questions."]');
+    agentForm.append('suggested_messages', '[]');
+    agentForm.append('theme', 'light');
+    agentForm.append('is_streaming', '1');
+    agentForm.append('color', '#4f46e5');
+    agentForm.append('header_color', '');
+    agentForm.append('newFilesData', '[]');
+    agentForm.append('botName', storeName);
+    agentForm.append('businessType', '{"label":"Other","value":"Other","type":"other"}');
+
+    try {
+      const createAgentRes = await axios.post(`https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${storeSlug}`, agentForm, {
+        headers: {
+          ...agentForm.getHeaders(),
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const agentId = createAgentRes.data?.data?._id || createAgentRes.data?.agent_id || createAgentRes.data?._id || createAgentRes.data?.chatbot_id;
+
+      if (agentId) {
+        await prisma.rubikchat_agents.create({
+          data: {
+            organization_id: orgRecord.id,
+            agent_id: agentId.toString(),
+          }
+        });
+      } else {
+        console.log('Agent created but no agent_id returned. Response:', createAgentRes.data);
+      }
+    } catch (agentErr: any) {
+      console.error('Failed to create agent:', agentErr.response?.data || agentErr.message);
+      // We don't fail the whole request because the user is registered and logged in successfully.
+    }
 
     return res.json({ success: true, message: 'RubikChat connected successfully' });
   } catch (error: any) {
