@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Store, CheckCircle, XCircle, Sparkles, ArrowRight, Mail, Loader2 } from 'lucide-react';
+import { Store, CheckCircle, XCircle, Sparkles, ArrowRight, Mail, Loader2, ExternalLink } from 'lucide-react';
 
 function App() {
   const [shopUrl, setShopUrl] = useState('');
@@ -8,25 +8,34 @@ function App() {
   const [searchParams] = useSearchParams();
   
   // App states: idle -> connecting_shopify -> shopify_success -> setting_up_rubikchat -> complete
-  const [status, setStatus] = useState<'idle' | 'shopify_success' | 'setting_up_rubikchat' | 'complete' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'shopify_success' | 'setting_up_rubikchat' | 'complete' | 'error' | 'checking'>('idle');
   const [connectedShop, setConnectedShop] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isHovered, setIsHovered] = useState(false);
 
+  const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
+  const initialShop = searchParams.get('shop');
+
   useEffect(() => {
     const urlStatus = searchParams.get('status');
-    const shop = searchParams.get('shop');
 
-    if (urlStatus === 'success' && shop) {
-      setConnectedShop(shop);
-      checkStatus(shop);
+    if (isEmbedded && initialShop) {
+      // If we are inside the Shopify Admin iframe, we want to immediately check connection status
+      setStatus('checking');
+      setConnectedShop(initialShop);
+      checkStatus(initialShop, true);
+    } else if (urlStatus === 'success' && initialShop) {
+      setConnectedShop(initialShop);
+      checkStatus(initialShop, false);
     } else if (urlStatus === 'error') {
       setStatus('error');
       setErrorMessage('We couldn\'t connect your store. Please double-check your URL and try again.');
+    } else if (initialShop) {
+      setShopUrl(initialShop);
     }
-  }, [searchParams]);
+  }, [searchParams, isEmbedded, initialShop]);
 
-  const checkStatus = async (shop: string) => {
+  const checkStatus = async (shop: string, embeddedMode: boolean) => {
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
       const res = await fetch(`${backendUrl}/api/status?shop=${shop}`);
@@ -34,11 +43,12 @@ function App() {
       
       if (data.shopifyConnected && data.rubikchatConnected) {
         setStatus('complete');
-      } else if (data.shopifyConnected) {
+      } else if (data.shopifyConnected && !embeddedMode) {
         setStatus('shopify_success');
+      } else if (!data.shopifyConnected && !data.rubikchatConnected && embeddedMode) {
+        setStatus('idle');
       } else {
-        setStatus('error');
-        setErrorMessage('Shopify connection not found.');
+        setStatus('idle');
       }
     } catch (err) {
       setStatus('error');
@@ -84,6 +94,72 @@ function App() {
     }
   };
 
+  const handleOpenStandalone = () => {
+    // Break out of iframe to do the full standalone connection process
+    window.open(window.location.origin + '?shop=' + connectedShop, '_blank');
+  };
+
+  // ==========================================
+  // EMBEDDED UI (Inside Shopify Admin)
+  // ==========================================
+  if (isEmbedded) {
+    return (
+      <div className="min-h-screen bg-[#f4f6f8] p-8 font-sans">
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-[#e1e3e5] p-8">
+          <div className="flex items-center space-x-4 mb-6 pb-6 border-b border-[#e1e3e5]">
+            <div className="bg-gradient-to-tr from-blue-500 to-purple-500 w-12 h-12 rounded-lg flex items-center justify-center shadow-md">
+              <Store className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-[#202223]">RubikChat Setup</h1>
+              <p className="text-[#6d7175]">AI Agents for Customer Support & Sales</p>
+            </div>
+          </div>
+
+          {status === 'checking' && (
+            <div className="flex items-center space-x-3 text-[#6d7175]">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Checking connection status...</span>
+            </div>
+          )}
+
+          {status === 'complete' && (
+            <div className="bg-[#e3f1df] border border-[#aee9d1] rounded-lg p-5 flex items-start space-x-4">
+              <div className="bg-[#00a47c] p-1.5 rounded-full mt-0.5">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-[#202223] font-semibold text-lg">Successfully Connected</h3>
+                <p className="text-[#6d7175] mt-1">
+                  Your store <strong>{connectedShop}</strong> is fully integrated with RubikChat AI.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {status === 'idle' && (
+            <div className="text-center py-8">
+              <h2 className="text-lg font-semibold text-[#202223] mb-2">Action Required</h2>
+              <p className="text-[#6d7175] mb-6 max-w-sm mx-auto">
+                To enable your AI agents, you need to connect your Shopify store to your RubikChat account securely.
+              </p>
+              <button 
+                onClick={handleOpenStandalone}
+                className="inline-flex items-center space-x-2 bg-[#2c6ecb] hover:bg-[#1f5199] text-white font-medium px-6 py-2.5 rounded-md shadow-sm transition-colors"
+              >
+                <span>Connect with RubikChat</span>
+                <ExternalLink className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // STANDALONE UI (Vercel full screen)
+  // ==========================================
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
       {/* Animated Background Blobs */}
@@ -188,7 +264,7 @@ function App() {
             </div>
           )}
 
-          {status === 'idle' && (
+          {(status === 'idle' || status === 'checking') && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="space-y-2">
                 <label htmlFor="shop" className="block text-sm font-medium text-slate-300 ml-1 flex items-center space-x-2">
