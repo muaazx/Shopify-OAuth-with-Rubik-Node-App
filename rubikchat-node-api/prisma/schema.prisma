@@ -11,41 +11,44 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
-  refreshToken        String?
-  refreshTokenExpires DateTime?
+model shopify_integrations {
+  id                String   @id @default(cuid())
+  store_name        String?
+  store_url         String   @unique
+  access_token      String
+  scope             String?
+  currency          String?
+  timezone          String?
+  status            String   @default("connected") // e.g. connected, pending, failed
+  installation_date DateTime @default(now())
+  updated_at        DateTime @updatedAt
 }
 
-model Organization {
-  id        String   @id @default(cuid())
-  shop      String   @unique
-  email     String
-  token     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  Agent     Agent[]
+model rubikchat_organizations {
+  id         String   @id @default(cuid())
+  store_url  String   @unique
+  email      String
+  token      String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  agents     rubikchat_agents[]
 }
 
-model Agent {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  agentId        String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+model rubikchat_agents {
+  id              String                  @id @default(cuid())
+  organization_id String
+  organization    rubikchat_organizations @relation(fields: [organization_id], references: [id])
+  agent_id        String
+  created_at      DateTime                @default(now())
+  updated_at      DateTime                @updatedAt
+}
+
+model api_logs {
+  id         String   @id @default(cuid())
+  endpoint   String
+  method     String
+  status     Int
+  request    String?
+  response   String?
+  created_at DateTime @default(now())
 }
