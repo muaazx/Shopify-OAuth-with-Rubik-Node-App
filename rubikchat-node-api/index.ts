@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { shopifyApi, ApiVersion } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
+import axios from 'axios';
+import FormData from 'form-data';
 
 dotenv.config();
 
@@ -176,6 +178,116 @@ app.get('/api/shopify/products', async (req, res) => {
   } catch (error: any) {
     console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+});
+
+// Phase 4: Status Check
+app.get('/api/status', async (req, res) => {
+  const shop = req.query.shop as string;
+  if (!shop) return res.status(400).json({ error: 'Missing shop parameter' });
+
+  try {
+    const shopifyIntegration = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!shopifyIntegration) {
+      return res.json({ shopifyConnected: false, rubikchatConnected: false });
+    }
+
+    const rubikchatIntegration = await prisma.rubikchat_organizations.findUnique({
+      where: { store_url: shop },
+    });
+
+    return res.json({
+      shopifyConnected: true,
+      rubikchatConnected: !!rubikchatIntegration,
+      shopDetails: {
+        store_name: shopifyIntegration.store_name,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching status:', error);
+    res.status(500).json({ error: 'Failed to fetch status' });
+  }
+});
+
+// Phase 4: RubikChat Setup (Register & Login)
+app.post('/api/rubikchat/setup', async (req, res) => {
+  const { shop, email } = req.body;
+  if (!shop || !email) {
+    return res.status(400).json({ error: 'Missing shop or email' });
+  }
+
+  try {
+    const shopifyRecord = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!shopifyRecord) {
+      return res.status(404).json({ error: 'Shopify integration not found. Please connect Shopify first.' });
+    }
+
+    // Generate random password (8-10 characters)
+    const generatePassword = () => Math.random().toString(36).slice(-10);
+    const password = generatePassword();
+
+    // 1. Call Register API
+    const registerForm = new FormData();
+    registerForm.append('email', email);
+    registerForm.append('password', password);
+    registerForm.append('domain', shopifyRecord.store_url);
+    registerForm.append('company_name', shopifyRecord.store_name || shopifyRecord.store_url);
+
+    try {
+      await axios.post('https://api-proxy-v1.rubikchat.com/api/wps/register', registerForm, {
+        headers: registerForm.getHeaders(),
+      });
+    } catch (err: any) {
+      // Check if user already exists
+      if (err.response?.status !== 422 && err.response?.status !== 400) {
+        console.error('Registration failed:', err.response?.data || err.message);
+        return res.status(500).json({ error: 'Failed to register with RubikChat', details: err.response?.data });
+      }
+      console.log('Registration warning (might already exist):', err.response?.data);
+    }
+
+    // 2. Call Login API
+    const loginForm = new FormData();
+    loginForm.append('email', email);
+    loginForm.append('password', password);
+
+    const loginResponse = await axios.post('https://api-proxy-v1.rubikchat.com/api/login', loginForm, {
+      headers: loginForm.getHeaders(),
+    });
+
+    const token = loginResponse.data?.token || loginResponse.data?.access_token || loginResponse.data?.data?.token;
+
+    if (!token) {
+      console.error('Login response did not contain a token:', loginResponse.data);
+      return res.status(500).json({ error: 'Failed to retrieve auth token after login' });
+    }
+
+    // 3. Save to database
+    await prisma.rubikchat_organizations.upsert({
+      where: { store_url: shop },
+      update: {
+        email,
+        password,
+        token,
+      },
+      create: {
+        store_url: shop,
+        email,
+        password,
+        token,
+      }
+    });
+
+    return res.json({ success: true, message: 'RubikChat connected successfully' });
+  } catch (error: any) {
+    console.error('RubikChat setup error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Internal server error during RubikChat setup' });
   }
 });
 
