@@ -2,12 +2,12 @@
 
 client_id = "313c24ef02b06cd1f27c138c25f6a4a2"
 name = "rubikchat-agent-app"
-application_url = "https://example.com"
+handle = "rubikchat-agent-app-1"
+application_url = "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2026-10"
@@ -25,7 +25,11 @@ api_version = "2026-10"
 scopes = "write_products,write_metaobjects,write_metaobject_definitions"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [
+  "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app/auth/callback",
+  "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app/auth/shopify/callback",
+  "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app/api/auth/callback"
+]
 
 [product.metafields.app.demo_info]
 type = "single_line_text_field"
