@@ -11,7 +11,7 @@ const app = express();
 const prisma = new PrismaClient();
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app'],
+  origin: ['http://localhost:5173', 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app'],
   credentials: true,
 }));
 app.use(express.json());
