@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Store, CheckCircle, XCircle, Sparkles, ArrowRight } from 'lucide-react';
+import { Store, CheckCircle, XCircle, Sparkles, ArrowRight, Mail, Loader2 } from 'lucide-react';
 
 function App() {
   const [shopUrl, setShopUrl] = useState('');
+  const [email, setEmail] = useState('');
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  
+  // App states: idle -> connecting_shopify -> shopify_success -> setting_up_rubikchat -> complete
+  const [status, setStatus] = useState<'idle' | 'shopify_success' | 'setting_up_rubikchat' | 'complete' | 'error'>('idle');
   const [connectedShop, setConnectedShop] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
@@ -14,14 +18,35 @@ function App() {
     const shop = searchParams.get('shop');
 
     if (urlStatus === 'success' && shop) {
-      setStatus('success');
       setConnectedShop(shop);
+      checkStatus(shop);
     } else if (urlStatus === 'error') {
       setStatus('error');
+      setErrorMessage('We couldn\'t connect your store. Please double-check your URL and try again.');
     }
   }, [searchParams]);
 
-  const handleConnect = () => {
+  const checkStatus = async (shop: string) => {
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const res = await fetch(`${backendUrl}/api/status?shop=${shop}`);
+      const data = await res.json();
+      
+      if (data.shopifyConnected && data.rubikchatConnected) {
+        setStatus('complete');
+      } else if (data.shopifyConnected) {
+        setStatus('shopify_success');
+      } else {
+        setStatus('error');
+        setErrorMessage('Shopify connection not found.');
+      }
+    } catch (err) {
+      setStatus('error');
+      setErrorMessage('Failed to verify connection status.');
+    }
+  };
+
+  const handleConnectShopify = () => {
     if (!shopUrl) return;
     
     let domain = shopUrl.trim();
@@ -31,6 +56,32 @@ function App() {
     
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
     window.location.href = `${backendUrl}/api/auth/shopify?shop=${domain}`;
+  };
+
+  const handleSetupRubikchat = async () => {
+    if (!email || !connectedShop) return;
+    
+    setStatus('setting_up_rubikchat');
+    
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const res = await fetch(`${backendUrl}/api/rubikchat/setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop: connectedShop, email }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStatus('complete');
+      } else {
+        setStatus('error');
+        setErrorMessage(data.error || 'Failed to setup RubikChat');
+      }
+    } catch (err) {
+      setStatus('error');
+      setErrorMessage('Network error while setting up RubikChat');
+    }
   };
 
   return (
@@ -58,15 +109,15 @@ function App() {
             </p>
           </div>
 
-          {status === 'success' && (
+          {status === 'complete' && (
             <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-5 flex items-start space-x-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-green-500/20 p-2 rounded-full">
+              <div className="bg-green-500/20 p-2 rounded-full flex-shrink-0">
                 <CheckCircle className="w-6 h-6 text-green-400" />
               </div>
               <div>
-                <h3 className="text-green-400 font-semibold text-lg">Successfully Connected!</h3>
+                <h3 className="text-green-400 font-semibold text-lg">Setup Complete!</h3>
                 <p className="text-green-300/80 text-sm mt-1">
-                  Your store <strong className="text-green-200">{connectedShop}</strong> is now securely linked.
+                  Your store <strong className="text-green-200">{connectedShop}</strong> and RubikChat AI are fully integrated. You are ready to go!
                 </p>
               </div>
             </div>
@@ -74,15 +125,66 @@ function App() {
 
           {status === 'error' && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5 flex items-start space-x-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-red-500/20 p-2 rounded-full">
+              <div className="bg-red-500/20 p-2 rounded-full flex-shrink-0">
                 <XCircle className="w-6 h-6 text-red-400" />
               </div>
               <div>
                 <h3 className="text-red-400 font-semibold text-lg">Connection Failed</h3>
                 <p className="text-red-300/80 text-sm mt-1">
-                  We couldn't connect your store. Please double-check your URL and try again.
+                  {errorMessage}
                 </p>
+                <button onClick={() => setStatus('idle')} className="mt-3 text-red-400 text-xs font-semibold hover:underline">Try Again</button>
               </div>
+            </div>
+          )}
+
+          {status === 'shopify_success' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 flex items-center space-x-3 mb-2">
+                 <CheckCircle className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                 <span className="text-blue-300 text-sm font-medium">Shopify Connected Successfully!</span>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-sm font-medium text-slate-300 ml-1 flex items-center space-x-2">
+                  <Mail className="w-4 h-4 text-purple-400" />
+                  <span>Enter your Email to finalize AI setup</span>
+                </label>
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
+                  <div className="relative flex items-center">
+                    <input
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@company.com"
+                      className="w-full pl-5 pr-5 py-4 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-300"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSetupRubikchat}
+                disabled={!email}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                className="group relative w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                <span className="relative z-10 flex items-center space-x-2">
+                  <span>Complete Setup</span>
+                  <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered && email ? 'translate-x-1' : ''}`} />
+                </span>
+              </button>
+            </div>
+          )}
+
+          {status === 'setting_up_rubikchat' && (
+            <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-500">
+               <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
+               <p className="text-purple-300 font-medium">Configuring RubikChat AI...</p>
             </div>
           )}
 
@@ -112,7 +214,7 @@ function App() {
               </div>
 
               <button
-                onClick={handleConnect}
+                onClick={handleConnectShopify}
                 disabled={!shopUrl}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
