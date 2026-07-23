@@ -27,6 +27,7 @@ model shopify_integrations {
 model rubikchat_organizations {
   id         String   @id @default(cuid())
   store_url  String   @unique
+  store_name String?
   email      String
   password   String?
   token      String?

@@ -275,9 +275,11 @@ app.post('/api/rubikchat/setup', async (req, res) => {
         email,
         password,
         token,
+        store_name: shopifyRecord.store_name,
       },
       create: {
         store_url: shop,
+        store_name: shopifyRecord.store_name,
         email,
         password,
         token,
