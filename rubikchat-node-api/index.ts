@@ -10,7 +10,10 @@ dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app'],
+  credentials: true,
+}));
 app.use(express.json());
 
 const shopify = shopifyApi({
