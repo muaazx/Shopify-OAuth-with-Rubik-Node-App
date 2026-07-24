@@ -496,7 +496,12 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
     }
     
     const storeName = shopifyRecord.store_name || shopifyRecord.store_url;
-    const organizationSlug = shopifyRecord.rubik_organization_slug || orgRecord.id.toString();
+    const organizationSlug = shopifyRecord.rubik_organization_slug;
+    
+    if (!organizationSlug) {
+      return res.status(400).json({ error: 'Organization slug missing. Please re-run setup to register your store.' });
+    }
+    
     const endpointUrl = `https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${organizationSlug}`;
 
     const agentForm = new FormData();
