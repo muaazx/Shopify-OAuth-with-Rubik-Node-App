@@ -169,7 +169,7 @@ function ConnectPage() {
                 To enable your AI agents, you need to connect your Shopify store to your RubikChat account securely.
               </p>
               <button 
-                onClick={handleOpenStandalone}
+                onClick={() => window.open(window.location.origin + '?shop=' + connectedShop, '_blank')}
                 className="inline-flex items-center space-x-2 bg-[#2c6ecb] hover:bg-[#1f5199] text-white font-medium px-6 py-2.5 rounded-md shadow-sm transition-colors"
               >
                 <span>Connect with RubikChat</span>
