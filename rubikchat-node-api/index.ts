@@ -216,8 +216,8 @@ app.get('/widget.js', async (req, res) => {
     }
   }
 
-  // Use the dynamically retrieved agent ID and append the shop parameter
-  const CHAT_IFRAME_URL = `https://app.rubikchat.com/chat/${agentId}?shop=${shop || ''}`;
+  // Use the dynamically retrieved agent ID and append the shop parameter for the public embedded widget
+  const CHAT_IFRAME_URL = `https://app.rubikchat.com/chat/embed?agentId=${agentId}&shop=${shop || ''}`;
 
   res.send(`
     (function() {
