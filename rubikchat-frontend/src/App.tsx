@@ -35,6 +35,9 @@ function App() {
       setErrorMessage('We couldn\'t connect your store. Please double-check your URL and try again.');
     } else if (initialShop) {
       setShopUrl(initialShop);
+      setConnectedShop(initialShop);
+      setStatus('checking');
+      checkStatus(initialShop, false);
     }
   }, [searchParams, isEmbedded, initialShop]);
 
@@ -165,35 +168,21 @@ function App() {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-[#202223] mb-3">Next Steps</h3>
-                <div className="grid gap-3">
+                <div className="grid gap-3 mt-4">
                   <button 
-                    onClick={handleEmbedWidget}
-                    disabled={isEmbedding || embedSuccess}
-                    className={`flex items-center justify-between w-full p-4 bg-white border border-[#e1e3e5] hover:border-[#2c6ecb] hover:shadow-sm rounded-lg transition-all text-left group ${embedSuccess ? 'opacity-70' : ''}`}
+                    onClick={handleOpenStandalone}
+                    className="flex items-center justify-between w-full p-4 bg-white border border-[#e1e3e5] hover:border-[#2c6ecb] hover:shadow-sm rounded-lg transition-all text-left group"
                   >
                     <div className="flex items-center space-x-4">
                       <div className="bg-[#f4f6f8] p-2.5 rounded-md group-hover:bg-[#f0f4fb] transition-colors">
-                        {isEmbedding ? (
-                          <Loader2 className="w-5 h-5 text-[#2c6ecb] animate-spin" />
-                        ) : embedSuccess ? (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <Sparkles className="w-5 h-5 text-[#2c6ecb]" />
-                        )}
+                        <Sparkles className="w-5 h-5 text-[#2c6ecb]" />
                       </div>
                       <div>
-                        <h4 className="text-[#202223] font-medium">
-                          {embedSuccess ? 'Widget Embedded!' : 'Embed RubikChat Agent'}
-                        </h4>
-                        <p className="text-[#6d7175] text-sm mt-0.5">
-                          {embedSuccess ? 'The chat widget is now live on your store.' : 'Add the AI chat widget to your storefront'}
-                        </p>
+                        <h4 className="text-[#202223] font-medium">Enable Functions</h4>
+                        <p className="text-[#6d7175] text-sm mt-0.5">Configure your AI agent and add features</p>
                       </div>
                     </div>
-                    {!isEmbedding && !embedSuccess && (
-                      <ArrowRight className="w-5 h-5 text-[#6d7175] group-hover:text-[#2c6ecb] group-hover:translate-x-1 transition-all" />
-                    )}
+                    <ExternalLink className="w-5 h-5 text-[#6d7175] group-hover:text-[#2c6ecb] transition-all" />
                   </button>
                 </div>
               </div>
@@ -256,8 +245,8 @@ function App() {
               </div>
               
               <div className="space-y-4">
-                <h3 className="text-white font-semibold text-lg">Next Steps</h3>
-                <p className="text-slate-400 text-sm">Choose an option below to continue.</p>
+                <h3 className="text-white font-semibold text-lg">Enable Functions</h3>
+                <p className="text-slate-400 text-sm">Select the functions you want to enable for your agent.</p>
                 
                 <div className="grid gap-3">
                   <button 
