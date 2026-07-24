@@ -497,7 +497,7 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
     
     const storeName = shopifyRecord.store_name || shopifyRecord.store_url;
     const organizationSlug = shopifyRecord.rubik_organization_slug || orgRecord.id.toString();
-    const endpointUrl = `https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${shopifyRecord.rubik_organization_id || organizationSlug}`;
+    const endpointUrl = `https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${organizationSlug}`;
 
     const agentForm = new FormData();
     
