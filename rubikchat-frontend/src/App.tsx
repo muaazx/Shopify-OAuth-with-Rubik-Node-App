@@ -190,76 +190,67 @@ function ConnectPage() {
   // STANDALONE UI (Vercel full screen)
   // ==========================================
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
-      {/* Animated Background Blobs */}
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-2xl opacity-20 animate-blob"></div>
-      <div className="absolute top-0 -right-4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-2xl opacity-20 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-2xl opacity-20 animate-blob animation-delay-4000"></div>
-
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative font-sans">
       <div className="relative z-10 max-w-md w-full">
-        {/* Glassmorphism Card */}
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-8 space-y-8 transition-all duration-500 hover:bg-white/[0.12] hover:border-white/30 hover:shadow-blue-900/50">
+        {/* Minimal White Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 space-y-8">
           
           <div className="text-center space-y-4">
-            <div className="mx-auto bg-gradient-to-tr from-blue-500 to-purple-500 w-20 h-20 rounded-2xl flex items-center justify-center mb-6 shadow-lg transform transition-transform duration-500 hover:rotate-12 hover:scale-110">
-              <Store className="w-10 h-10 text-white" strokeWidth={1.5} />
+            <div className="mx-auto bg-slate-100 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-slate-200">
+              <Store className="w-8 h-8 text-slate-900" strokeWidth={1.5} />
             </div>
             
-            <h1 className="text-4xl font-bold tracking-tight">
-              <span className="text-white">Connect</span>{' '}
-              <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Shopify</span>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+              Connect Shopify
             </h1>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-xs mx-auto">
+            <p className="text-slate-500 text-sm leading-relaxed max-w-xs mx-auto">
               Supercharge your ecommerce store with RubikChat's intelligent AI support agents.
             </p>
           </div>
 
           {status === 'complete' && (
             <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-500">
-               <Loader2 className="w-12 h-12 text-green-400 animate-spin" />
-               <p className="text-green-300 font-medium">Redirecting to functions...</p>
+               <Loader2 className="w-10 h-10 text-slate-900 animate-spin" />
+               <p className="text-slate-700 font-medium">Redirecting to functions...</p>
             </div>
           )}
 
           {status === 'error' && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5 flex items-start space-x-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-red-500/20 p-2 rounded-full flex-shrink-0">
-                <XCircle className="w-6 h-6 text-red-400" />
+            <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start space-x-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-red-100 p-2 rounded-full flex-shrink-0">
+                <XCircle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="text-red-400 font-semibold text-lg">Connection Failed</h3>
-                <p className="text-red-300/80 text-sm mt-1">
+                <h3 className="text-red-900 font-semibold text-sm">Connection Failed</h3>
+                <p className="text-red-700 text-sm mt-1">
                   {errorMessage}
                 </p>
-                <button onClick={() => setStatus('idle')} className="mt-3 text-red-400 text-xs font-semibold hover:underline">Try Again</button>
+                <button onClick={() => setStatus('idle')} className="mt-3 text-red-600 text-xs font-semibold hover:underline">Try Again</button>
               </div>
             </div>
           )}
 
           {status === 'shopify_success' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 flex items-center space-x-3 mb-2">
-                 <CheckCircle className="w-5 h-5 text-blue-400 flex-shrink-0" />
-                 <span className="text-blue-300 text-sm font-medium">Shopify Connected Successfully!</span>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center space-x-3 mb-2">
+                 <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                 <span className="text-emerald-800 text-sm font-medium">Shopify Connected Successfully!</span>
               </div>
               
               <div className="space-y-2">
-                <label htmlFor="email" className="block text-sm font-medium text-slate-300 ml-1 flex items-center space-x-2">
-                  <Mail className="w-4 h-4 text-purple-400" />
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 flex items-center space-x-2">
+                  <Mail className="w-4 h-4 text-slate-400" />
                   <span>Enter your Email to finalize AI setup</span>
                 </label>
-                <div className="relative group">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
-                  <div className="relative flex items-center">
-                    <input
-                      type="email"
-                      id="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@company.com"
-                      className="w-full pl-5 pr-5 py-4 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-300"
-                    />
-                  </div>
+                <div className="relative">
+                  <input
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                  />
                 </div>
               </div>
 
@@ -268,12 +259,11 @@ function ConnectPage() {
                 disabled={!email}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                className="group relative w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 overflow-hidden"
+                className="group relative w-full flex items-center justify-center space-x-2 bg-slate-900 hover:bg-black disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-medium py-3.5 px-6 rounded-xl shadow-sm transition-all overflow-hidden"
               >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
                 <span className="relative z-10 flex items-center space-x-2">
                   <span>Complete Setup</span>
-                  <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered && email ? 'translate-x-1' : ''}`} />
+                  <ArrowRight className={`w-4 h-4 transition-transform duration-300 ${isHovered && email ? 'translate-x-1' : ''}`} />
                 </span>
               </button>
             </div>
@@ -281,39 +271,36 @@ function ConnectPage() {
 
           {status === 'setting_up_rubikchat' && (
             <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-500">
-               <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
-               <p className="text-purple-300 font-medium">Configuring RubikChat AI...</p>
+               <Loader2 className="w-10 h-10 text-slate-900 animate-spin" />
+               <p className="text-slate-700 font-medium">Configuring RubikChat AI...</p>
             </div>
           )}
 
           {status === 'checking' && (
             <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-500">
-               <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
-               <p className="text-purple-300 font-medium">Verifying connection...</p>
+               <Loader2 className="w-10 h-10 text-slate-900 animate-spin" />
+               <p className="text-slate-700 font-medium">Verifying connection...</p>
             </div>
           )}
 
           {(status === 'idle' || status === 'connecting_shopify') && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="space-y-2">
-                <label htmlFor="shop" className="block text-sm font-medium text-slate-300 ml-1 flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
+                <label htmlFor="shop" className="block text-sm font-medium text-slate-700 flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-slate-400" />
                   <span>Store Domain</span>
                 </label>
-                <div className="relative group">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
-                  <div className="relative flex items-center">
-                    <input
-                      type="text"
-                      id="shop"
-                      value={shopUrl}
-                      onChange={(e) => setShopUrl(e.target.value)}
-                      placeholder="your-store-name"
-                      className="w-full pl-5 pr-36 py-4 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-300"
-                    />
-                    <div className="absolute right-4 text-slate-500 font-medium pointer-events-none">
-                      .myshopify.com
-                    </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="shop"
+                    value={shopUrl}
+                    onChange={(e) => setShopUrl(e.target.value)}
+                    placeholder="your-store-name"
+                    className="w-full pl-4 pr-36 py-3 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium pointer-events-none text-sm">
+                    .myshopify.com
                   </div>
                 </div>
               </div>
@@ -323,19 +310,18 @@ function ConnectPage() {
                 disabled={!shopUrl || status === 'connecting_shopify'}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                className="group relative w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 overflow-hidden"
+                className="group relative w-full flex items-center justify-center space-x-2 bg-slate-900 hover:bg-black disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-medium py-3.5 px-6 rounded-xl shadow-sm transition-all overflow-hidden"
               >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
                 <span className="relative z-10 flex items-center space-x-2">
                   {status === 'connecting_shopify' ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Connecting...</span>
                     </>
                   ) : (
                     <>
                       <span>Connect Store</span>
-                      <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered && shopUrl ? 'translate-x-1' : ''}`} />
+                      <ArrowRight className={`w-4 h-4 transition-transform duration-300 ${isHovered && shopUrl ? 'translate-x-1' : ''}`} />
                     </>
                   )}
                 </span>
@@ -347,8 +333,8 @@ function ConnectPage() {
         
         {/* Footer branding */}
         <div className="mt-8 flex items-center justify-center space-x-2 opacity-60 hover:opacity-100 transition-opacity duration-300 cursor-default">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
-          <span className="text-slate-400 text-sm font-medium tracking-wide">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+          <span className="text-slate-500 text-xs font-medium tracking-wide">
             Secured by RubikChat OAuth 2.0
           </span>
         </div>
