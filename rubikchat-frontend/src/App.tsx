@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Routes, Route, useNavigate } from 'react-router-dom';
 import { Store, CheckCircle, XCircle, Sparkles, ArrowRight, Mail, Loader2, ExternalLink } from 'lucide-react';
+import FunctionsPage from './FunctionsPage';
 
-function App() {
+function ConnectPage() {
   const [shopUrl, setShopUrl] = useState('');
   const [email, setEmail] = useState('');
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   
   // App states: idle -> connecting_shopify -> shopify_success -> setting_up_rubikchat -> complete
   const [status, setStatus] = useState<'idle' | 'connecting_shopify' | 'shopify_success' | 'setting_up_rubikchat' | 'complete' | 'error' | 'checking'>('idle');
   const [connectedShop, setConnectedShop] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isHovered, setIsHovered] = useState(false);
-  const [isEmbedding, setIsEmbedding] = useState(false);
-  const [embedSuccess, setEmbedSuccess] = useState(false);
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
   const initialShop = searchParams.get('shop');
@@ -48,7 +48,11 @@ function App() {
       const data = await res.json();
       
       if (data.shopifyConnected && data.rubikchatConnected) {
-        setStatus('complete');
+        if (!embeddedMode) {
+          navigate('/functions?shop=' + shop);
+        } else {
+          setStatus('complete');
+        }
       } else if (data.shopifyConnected && !embeddedMode) {
         setStatus('shopify_success');
       } else if (!data.shopifyConnected && !data.rubikchatConnected && embeddedMode) {
@@ -91,7 +95,7 @@ function App() {
       
       const data = await res.json();
       if (res.ok && data.success) {
-        setStatus('complete');
+        navigate('/functions?shop=' + connectedShop);
       } else {
         setStatus('error');
         setErrorMessage(data.error || 'Failed to setup RubikChat');
@@ -103,35 +107,8 @@ function App() {
   };
 
   const handleOpenStandalone = () => {
-    // Break out of iframe to do the full standalone connection process
-    window.open(window.location.origin + '?shop=' + connectedShop, '_blank');
-  };
-
-  const handleEmbedWidget = async () => {
-    if (!connectedShop) return;
-    
-    setIsEmbedding(true);
-    setEmbedSuccess(false);
-    
-    try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-      const res = await fetch(`${backendUrl}/api/shopify/embed-widget`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shop: connectedShop }),
-      });
-      
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setEmbedSuccess(true);
-      } else {
-        alert(data.error || 'Failed to embed widget');
-      }
-    } catch (err) {
-      alert('Network error while embedding widget');
-    } finally {
-      setIsEmbedding(false);
-    }
+    // Break out of iframe to the functions page
+    window.open(window.location.origin + '/functions?shop=' + connectedShop, '_blank');
   };
 
   // ==========================================
@@ -238,46 +215,9 @@ function App() {
           </div>
 
           {status === 'complete' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 flex items-center space-x-3 mb-4">
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                <span className="text-green-300 text-sm font-medium">Setup Complete! Your agent is ready.</span>
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="text-white font-semibold text-lg">Enable Functions</h3>
-                <p className="text-slate-400 text-sm">Select the functions you want to enable for your agent.</p>
-                
-                <div className="grid gap-3">
-                  <button 
-                    onClick={handleEmbedWidget}
-                    disabled={isEmbedding || embedSuccess}
-                    className={`group relative flex items-center p-4 bg-slate-900/80 border border-slate-700 hover:border-purple-500/50 rounded-xl transition-all duration-300 text-left overflow-hidden ${embedSuccess ? 'border-green-500/50 hover:border-green-500/50' : ''}`}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    <div className={`p-3 rounded-lg mr-4 flex-shrink-0 ${embedSuccess ? 'bg-green-500/20' : 'bg-purple-500/20'}`}>
-                      {isEmbedding ? (
-                        <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
-                      ) : embedSuccess ? (
-                        <CheckCircle className="w-6 h-6 text-green-400" />
-                      ) : (
-                        <Sparkles className="w-6 h-6 text-purple-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 z-10">
-                      <h4 className="text-white font-medium">
-                        {embedSuccess ? 'Widget Embedded Successfully!' : 'Embed RubikChat Agent'}
-                      </h4>
-                      <p className="text-slate-400 text-sm mt-0.5">
-                        {embedSuccess ? 'The chat widget is now live on your store.' : 'Add the AI chat widget to your storefront'}
-                      </p>
-                    </div>
-                    {!isEmbedding && !embedSuccess && (
-                      <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all duration-300 z-10 flex-shrink-0" />
-                    )}
-                  </button>
-                </div>
-              </div>
+            <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-500">
+               <Loader2 className="w-12 h-12 text-green-400 animate-spin" />
+               <p className="text-green-300 font-medium">Redirecting to functions...</p>
             </div>
           )}
 
@@ -417,4 +357,11 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<ConnectPage />} />
+      <Route path="/functions" element={<FunctionsPage />} />
+    </Routes>
+  );
+}
