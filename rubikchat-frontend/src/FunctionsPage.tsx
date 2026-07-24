@@ -9,6 +9,10 @@ export default function FunctionsPage() {
   
   const [isEmbedding, setIsEmbedding] = useState(false);
   const [embedSuccess, setEmbedSuccess] = useState(false);
+  
+  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+  const [createAgentSuccess, setCreateAgentSuccess] = useState(false);
+
   const [storeName, setStoreName] = useState('');
 
   useEffect(() => {
@@ -49,6 +53,33 @@ export default function FunctionsPage() {
       alert('Network error while embedding widget');
     } finally {
       setIsEmbedding(false);
+    }
+  };
+
+  const handleCreateAgent = async () => {
+    if (!shop) return;
+    
+    setIsCreatingAgent(true);
+    setCreateAgentSuccess(false);
+    
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const res = await fetch(`${backendUrl}/api/rubikchat/create-agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCreateAgentSuccess(true);
+      } else {
+        alert(data.error || 'Failed to create agent');
+      }
+    } catch (err) {
+      alert('Network error while creating agent');
+    } finally {
+      setIsCreatingAgent(false);
     }
   };
 
@@ -134,13 +165,55 @@ export default function FunctionsPage() {
             </button>
           </div>
           
-          {/* Placeholder for future functions */}
-          <div className="bg-slate-50 border border-slate-200 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-            <div className="p-4 bg-white border border-slate-100 rounded-full mb-4 shadow-sm">
-              <Sparkles className="w-5 h-5 text-slate-400" />
+          {/* Create Agent Card */}
+          <div className={`bg-white border ${createAgentSuccess ? 'border-emerald-500' : 'border-slate-200 hover:border-slate-300'} rounded-2xl shadow-sm p-6 transition-all duration-300 group`}>
+            <div className="flex items-start justify-between mb-6">
+              <div className={`p-3 rounded-2xl border ${createAgentSuccess ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+                {isCreatingAgent ? (
+                  <Loader2 className="w-6 h-6 text-slate-900 animate-spin" />
+                ) : createAgentSuccess ? (
+                  <CheckCircle className="w-6 h-6 text-emerald-600" />
+                ) : (
+                  <Sparkles className="w-6 h-6 text-slate-900" />
+                )}
+              </div>
             </div>
-            <h3 className="text-slate-700 font-medium mb-1">More Functions Coming Soon</h3>
-            <p className="text-slate-500 text-sm">Custom MCP functions will appear here.</p>
+            
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">
+              {createAgentSuccess ? 'Agent Created Successfully!' : 'Create AI Agent'}
+            </h3>
+            <p className="text-slate-500 text-sm mb-8 leading-relaxed h-10">
+              {createAgentSuccess 
+                ? 'Your AI Agent has been created on RubikChat.' 
+                : 'Instantly create your AI Agent using your Shopify store details.'}
+            </p>
+            
+            <button
+              onClick={handleCreateAgent}
+              disabled={isCreatingAgent || createAgentSuccess}
+              className={`w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all ${
+                createAgentSuccess 
+                  ? 'bg-emerald-50 text-emerald-700 cursor-default border border-emerald-200'
+                  : 'bg-slate-900 hover:bg-black text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed'
+              }`}
+            >
+              {isCreatingAgent ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : createAgentSuccess ? (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Agent Created</span>
+                </>
+              ) : (
+                <>
+                  <span>Create Agent</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>

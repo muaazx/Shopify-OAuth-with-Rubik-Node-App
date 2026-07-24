@@ -468,7 +468,31 @@ app.post('/api/rubikchat/setup', async (req, res) => {
       }
     });
 
-    // 4. Create Agent
+    return res.json({ success: true, message: 'RubikChat connected successfully' });
+  } catch (error: any) {
+    console.error('RubikChat setup error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Internal server error during RubikChat setup' });
+  }
+});
+
+// Phase 4: Create Agent Endpoint
+app.post('/api/rubikchat/create-agent', async (req, res) => {
+  const { shop } = req.body;
+  if (!shop) return res.status(400).json({ error: 'Missing shop parameter' });
+
+  try {
+    const shopifyRecord = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    const orgRecord = await prisma.rubikchat_organizations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!shopifyRecord || !orgRecord || !orgRecord.token) {
+      return res.status(404).json({ error: 'Integration not fully set up. Please reconnect.' });
+    }
+
     const storeName = shopifyRecord.store_name || shopifyRecord.store_url;
     const organizationSlug = storeName.toLowerCase().trim().replace(/\s+/g, '#');
 
@@ -517,35 +541,30 @@ ${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing`);
     agentForm.append('botName', `${storeName} Assistant`);
     agentForm.append('businessType', '{"label":"Other","value":"Other","type":"other"}');
 
-    try {
-      const createAgentRes = await axios.post(`https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${organizationSlug}`, agentForm, {
-        headers: {
-          ...agentForm.getHeaders(),
-          Authorization: `Bearer ${token}`
+    const createAgentRes = await axios.post(`https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${organizationSlug}`, agentForm, {
+      headers: {
+        ...agentForm.getHeaders(),
+        Authorization: `Bearer ${orgRecord.token}`
+      }
+    });
+
+    const agentId = createAgentRes.data?.data?._id || createAgentRes.data?.agent_id || createAgentRes.data?._id || createAgentRes.data?.chatbot_id;
+
+    if (agentId) {
+      await prisma.rubikchat_agents.create({
+        data: {
+          organization_id: orgRecord.id,
+          agent_id: agentId.toString(),
         }
       });
-
-      const agentId = createAgentRes.data?.data?._id || createAgentRes.data?.agent_id || createAgentRes.data?._id || createAgentRes.data?.chatbot_id;
-
-      if (agentId) {
-        await prisma.rubikchat_agents.create({
-          data: {
-            organization_id: orgRecord.id,
-            agent_id: agentId.toString(),
-          }
-        });
-      } else {
-        console.log('Agent created but no agent_id returned. Response:', createAgentRes.data);
-      }
-    } catch (agentErr: any) {
-      console.error('Failed to create agent:', agentErr.response?.data || agentErr.message);
-      // We don't fail the whole request because the user is registered and logged in successfully.
+      return res.json({ success: true, message: 'Agent created successfully', agent_id: agentId });
+    } else {
+      console.log('Agent created but no agent_id returned. Response:', createAgentRes.data);
+      return res.status(500).json({ error: 'Agent created but no ID was returned from proxy', details: createAgentRes.data });
     }
-
-    return res.json({ success: true, message: 'RubikChat connected successfully' });
   } catch (error: any) {
-    console.error('RubikChat setup error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Internal server error during RubikChat setup' });
+    console.error('Failed to create agent:', error.response?.data || error.message);
+    return res.status(500).json({ error: 'Failed to create agent', details: error.response?.data });
   }
 });
 
