@@ -431,6 +431,25 @@ app.post('/api/rubikchat/setup', async (req, res) => {
       return res.status(500).json({ error: 'Failed to retrieve auth token after login' });
     }
 
+    // Attempt to extract user and org IDs from login response in case registration was skipped
+    const loginData = loginResponse.data;
+    const loginUserId = loginData?.user?.id || loginData?.data?.user?.id || loginData?.user_id || loginData?.data?.user_id || null;
+    const loginOrgId = loginData?.organization?.id || loginData?.data?.organization?.id || loginData?.organization_id || loginData?.data?.organization_id || null;
+
+    if (loginUserId || loginOrgId) {
+      try {
+        await prisma.shopify_integrations.update({
+          where: { store_url: shop },
+          data: {
+            ...(loginUserId ? { rubik_user_id: Number(loginUserId) } : {}),
+            ...(loginOrgId ? { rubik_organization_id: Number(loginOrgId) } : {}),
+          }
+        });
+      } catch (dbErr) {
+        console.error('Failed to save RubikChat IDs from login to database:', dbErr);
+      }
+    }
+
     // 3. Save to database
     const orgRecord = await prisma.rubikchat_organizations.upsert({
       where: { store_url: shop },
