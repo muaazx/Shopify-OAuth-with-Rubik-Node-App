@@ -8,7 +8,7 @@ function App() {
   const [searchParams] = useSearchParams();
   
   // App states: idle -> connecting_shopify -> shopify_success -> setting_up_rubikchat -> complete
-  const [status, setStatus] = useState<'idle' | 'shopify_success' | 'setting_up_rubikchat' | 'complete' | 'error' | 'checking'>('idle');
+  const [status, setStatus] = useState<'idle' | 'connecting_shopify' | 'shopify_success' | 'setting_up_rubikchat' | 'complete' | 'error' | 'checking'>('idle');
   const [connectedShop, setConnectedShop] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isHovered, setIsHovered] = useState(false);
@@ -25,6 +25,7 @@ function App() {
       setConnectedShop(initialShop);
       checkStatus(initialShop, true);
     } else if (urlStatus === 'success' && initialShop) {
+      setStatus('checking');
       setConnectedShop(initialShop);
       checkStatus(initialShop, false);
     } else if (urlStatus === 'error') {
@@ -58,6 +59,8 @@ function App() {
 
   const handleConnectShopify = () => {
     if (!shopUrl) return;
+    
+    setStatus('connecting_shopify');
     
     let domain = shopUrl.trim();
     if (!domain.includes('.myshopify.com')) {
@@ -264,7 +267,14 @@ function App() {
             </div>
           )}
 
-          {(status === 'idle' || status === 'checking') && (
+          {status === 'checking' && (
+            <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-500">
+               <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
+               <p className="text-purple-300 font-medium">Verifying connection...</p>
+            </div>
+          )}
+
+          {(status === 'idle' || status === 'connecting_shopify') && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="space-y-2">
                 <label htmlFor="shop" className="block text-sm font-medium text-slate-300 ml-1 flex items-center space-x-2">
@@ -291,15 +301,24 @@ function App() {
 
               <button
                 onClick={handleConnectShopify}
-                disabled={!shopUrl}
+                disabled={!shopUrl || status === 'connecting_shopify'}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
                 className="group relative w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 overflow-hidden"
               >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
                 <span className="relative z-10 flex items-center space-x-2">
-                  <span>Connect Store</span>
-                  <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered && shopUrl ? 'translate-x-1' : ''}`} />
+                  {status === 'connecting_shopify' ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Connecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Connect Store</span>
+                      <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered && shopUrl ? 'translate-x-1' : ''}`} />
+                    </>
+                  )}
                 </span>
               </button>
             </div>
