@@ -22,6 +22,7 @@ model shopify_integrations {
   status            String   @default("connected") // e.g. connected, pending, failed
   rubik_user_id     Int?
   rubik_organization_id Int?
+  rubik_organization_slug String?
   installation_date DateTime @default(now())
   updated_at        DateTime @updatedAt
 }

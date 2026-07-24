@@ -392,14 +392,16 @@ app.post('/api/rubikchat/setup', async (req, res) => {
       const resData = registerRes.data;
       const rubikUserId = resData?.organization?.user_id || resData?.user?.id || resData?.data?.organization?.user_id || resData?.data?.user?.id || null;
       const rubikOrgId = resData?.organization?.id || resData?.data?.organization?.id || null;
+      const rubikOrgSlug = resData?.organization?.url || resData?.data?.organization?.url || resData?.organization?.slug || null;
 
-      if (rubikUserId || rubikOrgId) {
+      if (rubikUserId || rubikOrgId || rubikOrgSlug) {
         try {
           await prisma.shopify_integrations.update({
             where: { store_url: shop },
             data: {
-              rubik_user_id: rubikUserId ? Number(rubikUserId) : null,
-              rubik_organization_id: rubikOrgId ? Number(rubikOrgId) : null,
+              ...(rubikUserId ? { rubik_user_id: Number(rubikUserId) } : {}),
+              ...(rubikOrgId ? { rubik_organization_id: Number(rubikOrgId) } : {}),
+              ...(rubikOrgSlug ? { rubik_organization_slug: rubikOrgSlug } : {}),
             }
           });
         } catch (dbErr) {
@@ -492,12 +494,21 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
     if (!shopifyRecord || !orgRecord || !orgRecord.token) {
       return res.status(404).json({ error: 'Integration not fully set up. Please reconnect.' });
     }
-
+    
     const storeName = shopifyRecord.store_name || shopifyRecord.store_url;
-    const organizationSlug = storeName.toLowerCase().trim().replace(/\s+/g, '#');
+    const organizationSlug = shopifyRecord.rubik_organization_slug || orgRecord.id.toString();
+    const endpointUrl = `https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${shopifyRecord.rubik_organization_id || organizationSlug}`;
 
     const agentForm = new FormData();
     
+    // Add explicitly required fields
+    if (shopifyRecord.rubik_user_id) {
+      agentForm.append('user_id', shopifyRecord.rubik_user_id.toString());
+    }
+    if (shopifyRecord.rubik_organization_id) {
+      agentForm.append('organization_id', shopifyRecord.rubik_organization_id.toString());
+    }
+
     const storeContent = `${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing
 Automate customer service, capture more leads and boost sales with ${storeName} AI Agents. Provide instant support, reduce costs and grow your business.
 Boost sales by 20x and cut support costs. Connect your knowledge base and let ${storeName} handle your entire customer journey automatically.
@@ -583,36 +594,7 @@ Email: support@rubikchat.com
     
     agentForm.append('website', JSON.stringify(websiteData));
     agentForm.append('agentType', 'website');
-    agentForm.append('instructions', `You are the professional AI assistant for ${storeName}.
-1. Role & Identity
-- You are the official AI assistant representing ${storeName}.
-- You act as the primary digital contact for all user inquiries.
-- Your primary goal: provide accurate information, answer questions, and guide users to take action.
-2. Tone & Style
-- Professional, clear, and respectful at all times.
-- Use proper grammar and complete sentences.
-- Avoid slang, humor, or overly casual language.
-- Use bullet points or numbered steps when presenting multiple items.
-3. Opening Behavior
-- When a user sends their FIRST message or greeting (e.g., "hi", "hello"), you MUST:
-  a) Greet them warmly.
-  b) Introduce yourself: "I am your AI assistant for ${storeName}."
-  c) Briefly state what you can help with.
-  d) Ask how you can assist them today.
-4. Grounding & Accuracy
-- You MUST ONLY answer factual questions based on the provided knowledge base and enabled tools.
-- If a factual question is NOT in your knowledge base or tools, say: "I don't have that information right now, but I'd be happy to connect you with our team."
-- Never guess, fabricate, or assume factual information.
-- Avoid off-topic discussions unrelated to ${storeName} and its services.
-- IMPORTANT: Short conversational replies like "ok", "yes", "sure", "great", "sounds good", "proceed", "go ahead" are NOT questions. They are confirmations. Always treat them as the user agreeing to continue — never respond with "I can't help with that". Instead, continue guiding the user through the next step of the current workflow.
-5. Conversation Best Practices
-- Always respond in the same language the user is writing in.
-- You are encouraged to use relevant emojis to make the conversation engaging and friendly.
-- After completing any task, ask: "Is there anything else I can help you with?"
-- If a user seems stuck or confused, proactively offer guidance.
-- Keep responses concise — avoid walls of text unless the user asks for detail.
-5. About ${storeName}
-${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing`);
+    agentForm.append('instructions', `You are the professional AI assistant for ${storeName}.`);
     agentForm.append('temperature', '0');
     agentForm.append('llm', 'gpt-4o-mini');
     agentForm.append('initial_messages', '["Welcome :wave: I\'m here to help you explore our website, services, and answers to your questions."]');
@@ -625,7 +607,15 @@ ${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing`);
     agentForm.append('botName', `${storeName} Assistant`);
     agentForm.append('businessType', '{"label":"Other","value":"Other","type":"other"}');
 
-    const createAgentRes = await axios.post(`https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${organizationSlug}`, agentForm, {
+    // Add Logging as requested
+    console.log('--- CREATE AGENT API CALL ---');
+    console.log('URL:', endpointUrl);
+    console.log('Headers:', { ...agentForm.getHeaders(), Authorization: `Bearer ${orgRecord.token}` });
+    console.log('User ID:', shopifyRecord.rubik_user_id);
+    console.log('Organization ID:', shopifyRecord.rubik_organization_id);
+    console.log('-----------------------------');
+
+    const createAgentRes = await axios.post(endpointUrl, agentForm, {
       headers: {
         ...agentForm.getHeaders(),
         Authorization: `Bearer ${orgRecord.token}`
