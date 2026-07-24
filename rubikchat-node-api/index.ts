@@ -384,9 +384,28 @@ app.post('/api/rubikchat/setup', async (req, res) => {
     registerForm.append('company_name', shopifyRecord.store_name || shopifyRecord.store_url);
 
     try {
-      await axios.post('https://api-proxy-v1.rubikchat.com/api/wps/register', registerForm, {
+      const registerRes = await axios.post('https://api-proxy-v1.rubikchat.com/api/wps/register', registerForm, {
         headers: registerForm.getHeaders(),
       });
+
+      // Extract user_id and organization_id
+      const resData = registerRes.data;
+      const rubikUserId = resData?.organization?.user_id || resData?.user?.id || resData?.data?.organization?.user_id || resData?.data?.user?.id || null;
+      const rubikOrgId = resData?.organization?.id || resData?.data?.organization?.id || null;
+
+      if (rubikUserId || rubikOrgId) {
+        try {
+          await prisma.shopify_integrations.update({
+            where: { store_url: shop },
+            data: {
+              rubik_user_id: rubikUserId ? Number(rubikUserId) : null,
+              rubik_organization_id: rubikOrgId ? Number(rubikOrgId) : null,
+            }
+          });
+        } catch (dbErr) {
+          console.error('Failed to save RubikChat IDs to database:', dbErr);
+        }
+      }
     } catch (err: any) {
       // Check if user already exists
       if (err.response?.status !== 422 && err.response?.status !== 400) {

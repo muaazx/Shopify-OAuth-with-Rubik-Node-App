@@ -20,6 +20,8 @@ model shopify_integrations {
   currency          String?
   timezone          String?
   status            String   @default("connected") // e.g. connected, pending, failed
+  rubik_user_id     Int?
+  rubik_organization_id Int?
   installation_date DateTime @default(now())
   updated_at        DateTime @updatedAt
 }
