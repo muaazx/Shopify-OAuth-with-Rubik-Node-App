@@ -12,6 +12,8 @@ function App() {
   const [connectedShop, setConnectedShop] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isHovered, setIsHovered] = useState(false);
+  const [isEmbedding, setIsEmbedding] = useState(false);
+  const [embedSuccess, setEmbedSuccess] = useState(false);
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
   const initialShop = searchParams.get('shop');
@@ -102,6 +104,33 @@ function App() {
     window.open(window.location.origin + '?shop=' + connectedShop, '_blank');
   };
 
+  const handleEmbedWidget = async () => {
+    if (!connectedShop) return;
+    
+    setIsEmbedding(true);
+    setEmbedSuccess(false);
+    
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const res = await fetch(`${backendUrl}/api/shopify/embed-widget`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop: connectedShop }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEmbedSuccess(true);
+      } else {
+        alert(data.error || 'Failed to embed widget');
+      }
+    } catch (err) {
+      alert('Network error while embedding widget');
+    } finally {
+      setIsEmbedding(false);
+    }
+  };
+
   // ==========================================
   // EMBEDDED UI (Inside Shopify Admin)
   // ==========================================
@@ -139,19 +168,32 @@ function App() {
                 <h3 className="text-lg font-semibold text-[#202223] mb-3">Next Steps</h3>
                 <div className="grid gap-3">
                   <button 
-                    onClick={() => alert("Embed instructions coming soon!")}
-                    className="flex items-center justify-between w-full p-4 bg-white border border-[#e1e3e5] hover:border-[#2c6ecb] hover:shadow-sm rounded-lg transition-all text-left group"
+                    onClick={handleEmbedWidget}
+                    disabled={isEmbedding || embedSuccess}
+                    className={`flex items-center justify-between w-full p-4 bg-white border border-[#e1e3e5] hover:border-[#2c6ecb] hover:shadow-sm rounded-lg transition-all text-left group ${embedSuccess ? 'opacity-70' : ''}`}
                   >
                     <div className="flex items-center space-x-4">
                       <div className="bg-[#f4f6f8] p-2.5 rounded-md group-hover:bg-[#f0f4fb] transition-colors">
-                        <Sparkles className="w-5 h-5 text-[#2c6ecb]" />
+                        {isEmbedding ? (
+                          <Loader2 className="w-5 h-5 text-[#2c6ecb] animate-spin" />
+                        ) : embedSuccess ? (
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                        ) : (
+                          <Sparkles className="w-5 h-5 text-[#2c6ecb]" />
+                        )}
                       </div>
                       <div>
-                        <h4 className="text-[#202223] font-medium">Embed RubikChat Agent</h4>
-                        <p className="text-[#6d7175] text-sm mt-0.5">Add the AI chat widget to your storefront</p>
+                        <h4 className="text-[#202223] font-medium">
+                          {embedSuccess ? 'Widget Embedded!' : 'Embed RubikChat Agent'}
+                        </h4>
+                        <p className="text-[#6d7175] text-sm mt-0.5">
+                          {embedSuccess ? 'The chat widget is now live on your store.' : 'Add the AI chat widget to your storefront'}
+                        </p>
                       </div>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-[#6d7175] group-hover:text-[#2c6ecb] group-hover:translate-x-1 transition-all" />
+                    {!isEmbedding && !embedSuccess && (
+                      <ArrowRight className="w-5 h-5 text-[#6d7175] group-hover:text-[#2c6ecb] group-hover:translate-x-1 transition-all" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -219,18 +261,31 @@ function App() {
                 
                 <div className="grid gap-3">
                   <button 
-                    onClick={() => alert("Embed instructions coming soon!")}
-                    className="group relative flex items-center p-4 bg-slate-900/80 border border-slate-700 hover:border-purple-500/50 rounded-xl transition-all duration-300 text-left overflow-hidden"
+                    onClick={handleEmbedWidget}
+                    disabled={isEmbedding || embedSuccess}
+                    className={`group relative flex items-center p-4 bg-slate-900/80 border border-slate-700 hover:border-purple-500/50 rounded-xl transition-all duration-300 text-left overflow-hidden ${embedSuccess ? 'border-green-500/50 hover:border-green-500/50' : ''}`}
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    <div className="bg-purple-500/20 p-3 rounded-lg mr-4 flex-shrink-0">
-                      <Sparkles className="w-6 h-6 text-purple-400" />
+                    <div className={`p-3 rounded-lg mr-4 flex-shrink-0 ${embedSuccess ? 'bg-green-500/20' : 'bg-purple-500/20'}`}>
+                      {isEmbedding ? (
+                        <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                      ) : embedSuccess ? (
+                        <CheckCircle className="w-6 h-6 text-green-400" />
+                      ) : (
+                        <Sparkles className="w-6 h-6 text-purple-400" />
+                      )}
                     </div>
                     <div className="flex-1 z-10">
-                      <h4 className="text-white font-medium">Embed RubikChat Agent</h4>
-                      <p className="text-slate-400 text-sm mt-0.5">Add the AI chat widget to your storefront</p>
+                      <h4 className="text-white font-medium">
+                        {embedSuccess ? 'Widget Embedded Successfully!' : 'Embed RubikChat Agent'}
+                      </h4>
+                      <p className="text-slate-400 text-sm mt-0.5">
+                        {embedSuccess ? 'The chat widget is now live on your store.' : 'Add the AI chat widget to your storefront'}
+                      </p>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all duration-300 z-10 flex-shrink-0" />
+                    {!isEmbedding && !embedSuccess && (
+                      <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all duration-300 z-10 flex-shrink-0" />
+                    )}
                   </button>
                 </div>
               </div>

@@ -22,7 +22,7 @@ const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY || 'fake_key',
   apiSecretKey: process.env.SHOPIFY_API_SECRET || 'fake_secret',
   apiVersion: ApiVersion.July26,
-  scopes: ['read_products', 'write_products'], // Set required scopes
+  scopes: ['read_products', 'write_products', 'write_script_tags', 'read_script_tags'], // Set required scopes
   isEmbeddedApp: false,
   hostName: process.env.HOST?.replace(/https:\/\//, '') || 'localhost:3001', // Update based on ngrok or railway domain
 });
@@ -178,6 +178,55 @@ app.get('/api/shopify/products', async (req, res) => {
   } catch (error: any) {
     console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+});
+
+// Embed Widget via ScriptTag
+app.post('/api/shopify/embed-widget', async (req, res) => {
+  const { shop } = req.body;
+  if (!shop) {
+    return res.status(400).json({ error: 'Missing shop parameter' });
+  }
+
+  try {
+    const integrationRecord = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!integrationRecord || !integrationRecord.access_token) {
+      return res.status(404).json({ error: 'Shopify integration not found.' });
+    }
+
+    const client = new shopify.clients.Rest({
+      session: {
+        shop: integrationRecord.store_url,
+        accessToken: integrationRecord.access_token,
+      } as any,
+    });
+
+    // Check if script tag already exists
+    const existingTags: any = await client.get({ path: 'script_tags' });
+    const targetSrc = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js';
+    
+    const exists = existingTags?.body?.script_tags?.some((tag: any) => tag.src === targetSrc);
+
+    if (!exists) {
+      await client.post({
+        path: 'script_tags',
+        data: {
+          script_tag: {
+            event: 'onload',
+            src: targetSrc,
+          },
+        },
+        type: 'application/json',
+      });
+    }
+
+    res.json({ success: true, message: 'Widget embedded successfully!' });
+  } catch (error: any) {
+    console.error('Error embedding widget:', error.response?.body || error.message);
+    res.status(500).json({ error: 'Failed to embed widget' });
   }
 });
 

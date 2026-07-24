@@ -1,184 +1,91 @@
-import { useEffect } from "react";
-import type { ActionFunctionArgs, LoaderFunctionArgs, HeadersFunction } from "react-router";
-import { useFetcher, useLoaderData } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
+import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
+import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const org = await prisma.organization.findUnique({
-    where: { shop: session.shop },
-    include: { Agent: true },
-  });
+  const shop = session.shop;
 
-  return { org };
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const formData = await request.formData();
-  const email = formData.get("email") as string;
-  const intent = formData.get("intent") as string;
-
-  if (intent === "setup_rubikchat") {
-    // 1. Ask Email (we have it from form data)
-    // 2. Generate Password
-    const password = Math.random().toString(36).slice(-10) + "A1!";
+  try {
+    const res = await fetch(`https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/status?shop=${shop}`);
+    if (!res.ok) throw new Error("Failed to fetch status");
+    const data = await res.json();
     
-    try {
-      // 3. Register Organization
-      const registerRes = await fetch("https://api-proxy-v1.rubikchat.com/api/wps/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, shop: session.shop })
-      });
-      
-      if (!registerRes.ok) {
-        console.warn("Register may have failed or already exists", await registerRes.text());
-      }
-
-      // 4. Login & Save Token
-      const loginRes = await fetch("https://api-proxy-v1.rubikchat.com/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      const loginData = await loginRes.json();
-      
-      // Fallbacks in case the API shape is different
-      const token = loginData?.token || loginData?.access_token || "mock_token_" + Date.now();
-      const orgSlug = loginData?.organization_slug || session.shop.replace(".myshopify.com", "");
-
-      const org = await prisma.organization.upsert({
-        where: { shop: session.shop },
-        update: { email, token },
-        create: {
-          shop: session.shop,
-          email,
-          token,
-        },
-      });
-
-      // 5. Create Agent
-      // URL provided: https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot//{organization-slug}
-      const agentRes = await fetch(`https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${orgSlug}`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: `Shopify Agent for ${session.shop}` })
-      });
-      const agentData = await agentRes.json();
-
-      const agentId = agentData?.agent_id || agentData?.id || "agent_" + Date.now();
-      await prisma.agent.create({
-        data: {
-          organizationId: org.id,
-          agentId: String(agentId),
-        },
-      });
-
-      return { success: true, message: "RubikChat Setup Complete!" };
-    } catch (error: any) {
-      console.error("RubikChat API Error:", error);
-      return { success: false, message: "API Error: " + error.message };
-    }
+    return { shop, ...data };
+  } catch (error) {
+    console.error("Status check failed:", error);
+    return { shop, shopifyConnected: false, rubikchatConnected: false };
   }
-  
-  if (intent === "disconnect") {
-    const org = await prisma.organization.findUnique({ where: { shop: session.shop } });
-    if (org) {
-      await prisma.agent.deleteMany({ where: { organizationId: org.id } });
-      await prisma.organization.delete({ where: { id: org.id } });
-    }
-    return { success: true, message: "Disconnected successfully" };
-  }
-
-  return { success: false, message: "Unknown action" };
 };
 
 export default function Index() {
-  const { org } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<typeof action>();
-  const shopify = useAppBridge();
+  const { shop, shopifyConnected, rubikchatConnected, shopDetails } = useLoaderData<typeof loader>();
+  
+  const isFullyConnected = shopifyConnected && rubikchatConnected;
 
-  const isConnected = !!org;
-  const isLoading = ["loading", "submitting"].includes(fetcher.state);
-
-  useEffect(() => {
-    if (fetcher.data?.message) {
-      shopify.toast.show(fetcher.data.message);
-    }
-  }, [fetcher.data, shopify]);
+  const handleConnectClick = () => {
+    // Open the standalone Vercel frontend in a new tab so it escapes the Shopify iframe
+    window.open(`https://shopify-o-auth-with-rubik-node-app.vercel.app?shop=${shop}`, '_blank');
+  };
 
   return (
-    <s-page heading="RubikChat Setup">
-      {isConnected ? (
-        <s-section heading="Status: READY (Connected)">
-          <s-paragraph>
-            Your store is successfully connected to RubikChat. 
-            When RubikChat needs products, it will fetch them securely using your stored Shopify access token.
-          </s-paragraph>
-          <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued" style={{ marginTop: "16px", marginBottom: "16px" }}>
-            <s-paragraph>
-              <strong>Email:</strong> {org.email}
-            </s-paragraph>
-            <s-paragraph>
-              <strong>Agents Configured:</strong> {org.Agent.length}
-            </s-paragraph>
-          </s-box>
-          
-          <s-stack direction="inline" gap="base">
-            <fetcher.Form method="post">
-              <input type="hidden" name="intent" value="disconnect" />
-              <s-button
-                variant="primary"
-                tone="critical"
-                submit
-                {...(isLoading ? { loading: true } : {})}
-              >
-                Disconnect
-              </s-button>
-            </fetcher.Form>
-          </s-stack>
-        </s-section>
-      ) : (
-        <s-section heading="Connect your store to RubikChat">
-          <s-paragraph>
-            Please provide an email to register your organization and create your default agent.
-          </s-paragraph>
-          <fetcher.Form method="post">
-            <input type="hidden" name="intent" value="setup_rubikchat" />
-            <s-stack direction="block" gap="base">
-              <s-box padding="base">
-                <input 
-                  type="email" 
-                  name="email" 
-                  placeholder="Enter your email address" 
-                  required 
-                  style={{ 
-                    padding: "8px 12px", 
-                    borderRadius: "4px", 
-                    border: "1px solid #c9cccf", 
-                    width: "100%", 
-                    maxWidth: "400px",
-                    fontSize: "14px",
-                    display: "block",
-                    marginBottom: "16px"
-                  }}
-                />
-              </s-box>
-              <s-button submit variant="primary" {...(isLoading ? { loading: true } : {})}>
-                Register & Setup Agent
-              </s-button>
-            </s-stack>
-          </fetcher.Form>
-        </s-section>
-      )}
-    </s-page>
+    <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", padding: "2rem", maxWidth: "800px", margin: "0 auto" }}>
+      <ui-title-bar title="RubikChat Integration"></ui-title-bar>
+      
+      <div style={{ backgroundColor: "#fff", borderRadius: "8px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", padding: "2rem", border: "1px solid #e1e3e5" }}>
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <h1 style={{ fontSize: "24px", fontWeight: "600", marginBottom: "8px", color: "#202223" }}>
+            Welcome to RubikChat
+          </h1>
+          <p style={{ color: "#6d7175", fontSize: "16px" }}>
+            Autonomous AI Agents for Customer Support, Sales, and Marketing.
+          </p>
+        </div>
+
+        {isFullyConnected ? (
+          <div style={{ backgroundColor: "#e3f1df", border: "1px solid #aee9d1", borderRadius: "8px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div style={{ backgroundColor: "#00a47c", color: "white", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
+              ✓
+            </div>
+            <div>
+              <h2 style={{ fontSize: "16px", fontWeight: "600", color: "#202223", margin: "0 0 4px 0" }}>
+                Successfully Connected
+              </h2>
+              <p style={{ margin: "0", color: "#6d7175" }}>
+                Your store <strong>{shopDetails?.store_name || shop}</strong> is securely connected to RubikChat.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", padding: "2rem", backgroundColor: "#f4f6f8", borderRadius: "8px", border: "1px dashed #c9cccf" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: "600", color: "#202223", marginBottom: "12px" }}>
+              Action Required: Connect to RubikChat
+            </h2>
+            <p style={{ color: "#6d7175", marginBottom: "24px", maxWidth: "400px", margin: "0 auto 24px" }}>
+              To enable your AI agents, you need to connect your Shopify store to your RubikChat account.
+            </p>
+            <button 
+              onClick={handleConnectClick}
+              style={{ 
+                backgroundColor: "#2c6ecb", 
+                color: "white", 
+                border: "none", 
+                padding: "10px 20px", 
+                borderRadius: "4px", 
+                fontSize: "15px", 
+                fontWeight: "600", 
+                cursor: "pointer",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+              }}
+            >
+              Connect with RubikChat
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
   );
 }
 
