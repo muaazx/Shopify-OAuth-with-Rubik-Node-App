@@ -48,11 +48,7 @@ function ConnectPage() {
       const data = await res.json();
       
       if (data.shopifyConnected && data.rubikchatConnected) {
-        if (!embeddedMode) {
-          navigate('/functions?shop=' + shop);
-        } else {
-          setStatus('complete');
-        }
+        setStatus('complete');
       } else if (data.shopifyConnected && !embeddedMode) {
         setStatus('shopify_success');
       } else if (!data.shopifyConnected && !data.rubikchatConnected && embeddedMode) {
@@ -95,7 +91,7 @@ function ConnectPage() {
       
       const data = await res.json();
       if (res.ok && data.success) {
-        navigate('/functions?shop=' + connectedShop);
+        setStatus('complete');
       } else {
         setStatus('error');
         setErrorMessage(data.error || 'Failed to setup RubikChat');
@@ -209,9 +205,23 @@ function ConnectPage() {
           </div>
 
           {status === 'complete' && (
-            <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-500">
-               <Loader2 className="w-10 h-10 text-slate-900 animate-spin" />
-               <p className="text-slate-700 font-medium">Redirecting to functions...</p>
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3">
+                 <div className="bg-emerald-100 p-3 rounded-full">
+                   <CheckCircle className="w-8 h-8 text-emerald-600" />
+                 </div>
+                 <div>
+                   <h3 className="text-emerald-900 font-bold text-lg">Setup Complete!</h3>
+                   <p className="text-emerald-700 text-sm mt-1">Your store is successfully connected.</p>
+                 </div>
+              </div>
+              <button
+                onClick={() => navigate('/functions?shop=' + connectedShop)}
+                className="w-full flex items-center justify-center space-x-2 bg-slate-900 hover:bg-black text-white font-medium py-3.5 px-6 rounded-xl shadow-sm transition-all"
+              >
+                <span>Go to Functions Dashboard</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           )}
 

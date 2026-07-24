@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowRight, Loader2, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Sparkles, ArrowRight, Loader2, CheckCircle, ArrowLeft, Store } from 'lucide-react';
 
 export default function FunctionsPage() {
   const [searchParams] = useSearchParams();
@@ -9,6 +9,21 @@ export default function FunctionsPage() {
   
   const [isEmbedding, setIsEmbedding] = useState(false);
   const [embedSuccess, setEmbedSuccess] = useState(false);
+  const [storeName, setStoreName] = useState('');
+
+  useEffect(() => {
+    if (shop) {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      fetch(`${backendUrl}/api/status?shop=${shop}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.shopDetails?.store_name) {
+            setStoreName(data.shopDetails.store_name);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [shop]);
 
   const handleEmbedWidget = async () => {
     if (!shop) return;
@@ -40,16 +55,30 @@ export default function FunctionsPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 relative font-sans">
       <div className="relative z-10 max-w-4xl mx-auto">
-        <div className="flex items-center space-x-4 mb-8">
-          <button 
-            onClick={() => navigate('/')} 
-            className="p-2 bg-white hover:bg-slate-100 rounded-xl transition-colors border border-slate-200 shadow-sm"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-600" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Enable Functions</h1>
-            <p className="text-slate-500 mt-1">Select the functions you want to enable for {shop || 'your store'}.</p>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={() => navigate('/')} 
+              className="p-2 bg-white hover:bg-slate-100 rounded-xl transition-colors border border-slate-200 shadow-sm"
+            >
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">Enable Functions</h1>
+              <p className="text-slate-500 mt-1">Select the functions you want to enable.</p>
+            </div>
+          </div>
+          
+          <div className="hidden md:flex items-center space-x-3 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+            <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200">
+               <Store className="w-4 h-4 text-slate-700" />
+            </div>
+            <div className="flex flex-col pr-2">
+              <span className="text-sm font-semibold text-slate-900">{storeName || shop || 'Connected Store'}</span>
+              <span className="text-xs font-medium text-emerald-600 flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Connected
+              </span>
+            </div>
           </div>
         </div>
 
