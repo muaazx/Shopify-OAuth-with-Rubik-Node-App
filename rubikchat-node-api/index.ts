@@ -181,6 +181,49 @@ app.get('/api/shopify/products', async (req, res) => {
   }
 });
 
+// Serve the floating widget JavaScript
+app.get('/widget.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Crucial for cross-origin loading from Shopify
+
+  res.send(`
+    (function() {
+      console.log('RubikChat Agent Widget Execution Started!');
+
+      function createWidget() {
+        if (document.getElementById('rubikchat-floating-btn')) return;
+
+        var button = document.createElement('div');
+        button.id = 'rubikchat-floating-btn';
+        button.innerHTML = '💬';
+        button.style.cssText = 'position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #0f172a; color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; cursor: pointer; z-index: 999999; box-shadow: 0 4px 14px rgba(0,0,0,0.15); transition: transform 0.2s ease;';
+        
+        button.onmouseover = function() {
+          button.style.transform = 'scale(1.05)';
+        };
+        
+        button.onmouseout = function() {
+          button.style.transform = 'scale(1)';
+        };
+
+        button.onclick = function() {
+          alert('RubikChat AI Agent Initialized!');
+        };
+
+        document.body.appendChild(button);
+        console.log('RubikChat Floating Button Mounted to DOM!');
+      }
+
+      // Execute immediately if DOM is ready, otherwise attach listener
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        createWidget();
+      } else {
+        window.addEventListener('load', createWidget);
+      }
+    })();
+  `);
+});
+
 // Embed Widget via ScriptTag
 app.post('/api/shopify/embed-widget', async (req, res) => {
   const { shop } = req.body;
