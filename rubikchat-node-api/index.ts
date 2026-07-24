@@ -498,25 +498,6 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
       return res.status(404).json({ error: 'Integration not fully set up. Please reconnect.' });
     }
 
-    const existingAgent = orgRecord.agents
-      .slice()
-      .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())[0];
-
-    if (existingAgent) {
-      await prisma.shopify_integrations.update({
-        where: { store_url: shop },
-        data: {
-          rubik_agent_id: existingAgent.agent_id,
-        },
-      });
-
-      return res.json({
-        success: true,
-        message: 'Agent already exists',
-        agentId: existingAgent.agent_id,
-      });
-    }
-    
     const storeName = shopifyRecord.store_name || shopifyRecord.store_url;
       organizationId = orgRecord.id;
     const organizationSlug = shopifyRecord.rubik_organization_slug || organizationId.toString();
