@@ -220,7 +220,7 @@ app.get('/widget.js', async (req, res) => {
   }
 
   // Use the dynamically retrieved agent ID and append the shop parameter for the public embedded widget
-  const CHAT_IFRAME_URL = `https://app.rubikchat.com/chat/embed?agentId=${agentId}&shop=${shop || ''}`;
+  const CHAT_IFRAME_URL = `https://api-proxy-v1.rubikchat.com/chat/embed?agentId=${agentId}&shop=${shop || ''}`;
 
   res.send(`
     (function() {
@@ -622,7 +622,7 @@ Email: support@rubikchat.com
       }
     });
 
-    const agentId = createAgentRes.data?.data?._id || createAgentRes.data?.agent_id || createAgentRes.data?._id || createAgentRes.data?.chatbot_id;
+    const agentId = createAgentRes.data?.botId || createAgentRes.data?.chatbot?.chatbot_key || createAgentRes.data?.data?._id || createAgentRes.data?.agent_id || createAgentRes.data?._id || createAgentRes.data?.chatbot_id;
 
     if (agentId) {
       await prisma.rubikchat_agents.create({
