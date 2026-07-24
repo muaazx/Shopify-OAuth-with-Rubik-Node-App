@@ -503,10 +503,17 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
       .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())[0];
 
     if (existingAgent) {
+      await prisma.shopify_integrations.update({
+        where: { store_url: shop },
+        data: {
+          rubik_agent_id: existingAgent.agent_id,
+        },
+      });
+
       return res.json({
         success: true,
         message: 'Agent already exists',
-        agent_id: existingAgent.agent_id,
+        agentId: existingAgent.agent_id,
       });
     }
     
@@ -631,26 +638,33 @@ Email: support@rubikchat.com
     console.log('Organization ID:', shopifyRecord.rubik_organization_id);
     console.log('-----------------------------');
 
-    const createAgentRes = await axios.post(endpointUrl, agentForm, {
+    const response = await axios.post(endpointUrl, agentForm, {
       headers: {
         ...agentForm.getHeaders(),
         Authorization: `Bearer ${orgRecord.token}`
       }
     });
 
-    const agentId = createAgentRes.data?.data?._id || createAgentRes.data?.agent_id || createAgentRes.data?._id || createAgentRes.data?.chatbot_id;
+    const agentId = response.data.botId || response.data.chatbot?.chatbot_key || response.data.chatbot?.id;
 
     if (agentId) {
+      await prisma.shopify_integrations.update({
+        where: { store_url: shop },
+        data: {
+          rubik_agent_id: agentId.toString(),
+        },
+      });
+
       await prisma.rubikchat_agents.create({
         data: {
           organization_id: orgRecord.id,
           agent_id: agentId.toString(),
         }
       });
-      return res.json({ success: true, message: 'Agent created successfully', agent_id: agentId });
+      return res.json({ success: true, agentId });
     } else {
-      console.log('Agent created but no agent_id returned. Response:', createAgentRes.data);
-      return res.status(500).json({ error: 'Agent created but no ID was returned from proxy', details: createAgentRes.data });
+      console.log('Agent created but no agent_id was returned. Response:', response.data);
+      return res.status(500).json({ error: 'Agent created but no ID was returned from proxy', details: response.data });
     }
   } catch (error: any) {
     console.error('Failed to create agent:', error.response?.data || error.message);
@@ -662,10 +676,17 @@ Email: support@rubikchat.com
         });
 
         if (fallbackAgent) {
+          await prisma.shopify_integrations.update({
+            where: { store_url: shop },
+            data: {
+              rubik_agent_id: fallbackAgent.agent_id,
+            },
+          });
+
           return res.json({
             success: true,
             message: 'Agent already exists',
-            agent_id: fallbackAgent.agent_id,
+            agentId: fallbackAgent.agent_id,
           });
         }
       }
