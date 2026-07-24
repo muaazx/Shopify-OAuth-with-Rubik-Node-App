@@ -216,8 +216,8 @@ app.get('/widget.js', async (req, res) => {
     }
   }
 
-  // Use the dynamically retrieved agent ID
-  const CHAT_IFRAME_URL = `https://app.rubikchat.com/chat/${agentId}`;
+  // Use the dynamically retrieved agent ID and append the shop parameter
+  const CHAT_IFRAME_URL = `https://app.rubikchat.com/chat/${agentId}?shop=${shop || ''}`;
 
   res.send(`
     (function() {
