@@ -182,39 +182,88 @@ app.get('/api/shopify/products', async (req, res) => {
 });
 
 // Serve the floating widget JavaScript
-app.get('/widget.js', (req, res) => {
+app.get('/widget.js', async (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Access-Control-Allow-Origin', '*'); // Crucial for cross-origin loading from Shopify
 
+  let shop = req.query.shop as string;
+  
+  if (!shop && req.headers.referer) {
+    try {
+      const refererUrl = new URL(req.headers.referer);
+      shop = refererUrl.hostname;
+    } catch (e) {
+      console.error('Invalid referer:', req.headers.referer);
+    }
+  }
+
+  let agentId = 'YOUR_AGENT_ID'; // fallback
+  
+  if (shop) {
+    try {
+      const org = await prisma.rubikchat_organizations.findUnique({
+        where: { store_url: shop },
+        include: { agents: true }
+      });
+      
+      if (org && org.agents && org.agents.length > 0) {
+        // Find the most recently created agent
+        const agent = org.agents.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())[0];
+        agentId = agent.agent_id;
+      }
+    } catch (error) {
+      console.error('Error fetching agent for widget:', error);
+    }
+  }
+
+  // Use the dynamically retrieved agent ID
+  const CHAT_IFRAME_URL = `https://app.rubikchat.com/chat/${agentId}`;
+
   res.send(`
     (function() {
-      console.log('RubikChat Agent Widget Execution Started!');
+      console.log('RubikChat Widget Loaded Successfully!');
 
       function createWidget() {
         if (document.getElementById('rubikchat-floating-btn')) return;
 
+        // 1. Create the Floating Button
         var button = document.createElement('div');
         button.id = 'rubikchat-floating-btn';
         button.innerHTML = '💬';
-        button.style.cssText = 'position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #0f172a; color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; cursor: pointer; z-index: 999999; box-shadow: 0 4px 14px rgba(0,0,0,0.15); transition: transform 0.2s ease;';
-        
-        button.onmouseover = function() {
-          button.style.transform = 'scale(1.05)';
-        };
-        
-        button.onmouseout = function() {
-          button.style.transform = 'scale(1)';
-        };
+        button.style.cssText = 'position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #4f46e5; color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; cursor: pointer; z-index: 999999; box-shadow: 0 4px 14px rgba(0,0,0,0.25); transition: transform 0.2s ease;';
 
+        button.onmouseover = function() { button.style.transform = 'scale(1.08)'; };
+        button.onmouseout = function() { button.style.transform = 'scale(1)'; };
+
+        // 2. Create the Chat Iframe Container
+        var iframeContainer = document.createElement('div');
+        iframeContainer.id = 'rubikchat-iframe-container';
+        iframeContainer.style.cssText = 'position: fixed; bottom: 90px; right: 20px; width: 400px; height: 600px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999999; display: none; background: #ffffff;';
+
+        // 3. Create the Iframe pointing to your RubikChat agent
+        var iframe = document.createElement('iframe');
+        iframe.src = '${CHAT_IFRAME_URL}';
+        iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
+        iframeContainer.appendChild(iframe);
+
+        // 4. Toggle Chat Window Visibility on Click
+        var isOpen = false;
         button.onclick = function() {
-          alert('RubikChat AI Agent Initialized!');
+          isOpen = !isOpen;
+          if (isOpen) {
+            iframeContainer.style.display = 'block';
+            button.innerHTML = '✖'; // Change button icon to Close
+          } else {
+            iframeContainer.style.display = 'none';
+            button.innerHTML = '💬'; // Change back to Chat icon
+          }
         };
 
+        // 5. Mount elements to DOM
+        document.body.appendChild(iframeContainer);
         document.body.appendChild(button);
-        console.log('RubikChat Floating Button Mounted to DOM!');
       }
 
-      // Execute immediately if DOM is ready, otherwise attach listener
       if (document.readyState === 'complete' || document.readyState === 'interactive') {
         createWidget();
       } else {
