@@ -210,6 +210,9 @@ app.get('/widget.js', async (req, res) => {
         // Find the most recently created agent
         const agent = org.agents.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())[0];
         agentId = agent.agent_id;
+      } else if (org && org.token) {
+        // Fallback to the organization token if no agent is explicitly created
+        agentId = org.token;
       }
     } catch (error) {
       console.error('Error fetching agent for widget:', error);
