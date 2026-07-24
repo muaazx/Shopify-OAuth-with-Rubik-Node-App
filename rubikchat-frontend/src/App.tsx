@@ -127,15 +127,33 @@ function App() {
           )}
 
           {status === 'complete' && (
-            <div className="bg-[#e3f1df] border border-[#aee9d1] rounded-lg p-5 flex items-start space-x-4">
-              <div className="bg-[#00a47c] p-1.5 rounded-full mt-0.5">
-                <CheckCircle className="w-5 h-5 text-white" />
+            <div className="space-y-6">
+              <div className="bg-[#e3f1df] border border-[#aee9d1] rounded-lg p-4 flex items-center space-x-3">
+                <div className="bg-[#00a47c] p-1 rounded-full">
+                  <CheckCircle className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-[#202223] font-medium">Successfully Connected</span>
               </div>
+              
               <div>
-                <h3 className="text-[#202223] font-semibold text-lg">Successfully Connected</h3>
-                <p className="text-[#6d7175] mt-1">
-                  Your store <strong>{connectedShop}</strong> is fully integrated with RubikChat AI.
-                </p>
+                <h3 className="text-lg font-semibold text-[#202223] mb-3">Next Steps</h3>
+                <div className="grid gap-3">
+                  <button 
+                    onClick={() => alert("Embed instructions coming soon!")}
+                    className="flex items-center justify-between w-full p-4 bg-white border border-[#e1e3e5] hover:border-[#2c6ecb] hover:shadow-sm rounded-lg transition-all text-left group"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-[#f4f6f8] p-2.5 rounded-md group-hover:bg-[#f0f4fb] transition-colors">
+                        <Sparkles className="w-5 h-5 text-[#2c6ecb]" />
+                      </div>
+                      <div>
+                        <h4 className="text-[#202223] font-medium">Embed RubikChat Agent</h4>
+                        <p className="text-[#6d7175] text-sm mt-0.5">Add the AI chat widget to your storefront</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-[#6d7175] group-hover:text-[#2c6ecb] group-hover:translate-x-1 transition-all" />
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -189,15 +207,32 @@ function App() {
           </div>
 
           {status === 'complete' && (
-            <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-5 flex items-start space-x-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-green-500/20 p-2 rounded-full flex-shrink-0">
-                <CheckCircle className="w-6 h-6 text-green-400" />
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 flex items-center space-x-3 mb-4">
+                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                <span className="text-green-300 text-sm font-medium">Setup Complete! Your agent is ready.</span>
               </div>
-              <div>
-                <h3 className="text-green-400 font-semibold text-lg">Setup Complete!</h3>
-                <p className="text-green-300/80 text-sm mt-1">
-                  Your store <strong className="text-green-200">{connectedShop}</strong> and RubikChat AI are fully integrated. You are ready to go!
-                </p>
+              
+              <div className="space-y-4">
+                <h3 className="text-white font-semibold text-lg">Next Steps</h3>
+                <p className="text-slate-400 text-sm">Choose an option below to continue.</p>
+                
+                <div className="grid gap-3">
+                  <button 
+                    onClick={() => alert("Embed instructions coming soon!")}
+                    className="group relative flex items-center p-4 bg-slate-900/80 border border-slate-700 hover:border-purple-500/50 rounded-xl transition-all duration-300 text-left overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div className="bg-purple-500/20 p-3 rounded-lg mr-4 flex-shrink-0">
+                      <Sparkles className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <div className="flex-1 z-10">
+                      <h4 className="text-white font-medium">Embed RubikChat Agent</h4>
+                      <p className="text-slate-400 text-sm mt-0.5">Add the AI chat widget to your storefront</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all duration-300 z-10 flex-shrink-0" />
+                  </button>
+                </div>
               </div>
             </div>
           )}
