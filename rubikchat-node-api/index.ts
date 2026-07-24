@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { shopifyApi, ApiVersion } from '@shopify/shopify-api';
+import { shopifyApi, ApiVersion, DataType } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import axios from 'axios';
 import FormData from 'form-data';
@@ -219,7 +219,7 @@ app.post('/api/shopify/embed-widget', async (req, res) => {
             src: targetSrc,
           },
         },
-        type: 'application/json',
+        type: DataType.JSON,
       });
     }
 
