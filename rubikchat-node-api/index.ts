@@ -343,9 +343,28 @@ app.get('/api/status', async (req, res) => {
       where: { store_url: shop },
     });
 
+    let widgetEmbedded = false;
+    if (shopifyIntegration.access_token) {
+      try {
+        const client = new shopify.clients.Rest({
+          session: {
+            shop: shopifyIntegration.store_url,
+            accessToken: shopifyIntegration.access_token,
+          } as any,
+        });
+        const existingTags: any = await client.get({ path: 'script_tags' });
+        const targetSrc = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js';
+        widgetEmbedded = existingTags?.body?.script_tags?.some((tag: any) => tag.src === targetSrc) || false;
+      } catch (err) {
+        console.error('Failed to fetch script tags for status (non-fatal):', err);
+      }
+    }
+
     return res.json({
       shopifyConnected: true,
       rubikchatConnected: !!rubikchatIntegration,
+      widgetEmbedded,
+      agentCreated: !!shopifyIntegration.rubik_agent_id,
       shopDetails: {
         store_name: shopifyIntegration.store_name,
       }

@@ -24,6 +24,12 @@ export default function FunctionsPage() {
           if (data.shopDetails?.store_name) {
             setStoreName(data.shopDetails.store_name);
           }
+          if (data.widgetEmbedded) {
+            setEmbedSuccess(true);
+          }
+          if (data.agentCreated) {
+            setCreateAgentSuccess(true);
+          }
         })
         .catch(console.error);
     }
