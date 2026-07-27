@@ -483,6 +483,7 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
   if (!shop) return res.status(400).json({ error: 'Missing shop parameter' });
 
   let organizationId: string | null = null;
+  let endpointUrl: string | undefined;
 
   try {
     const shopifyRecord = await prisma.shopify_integrations.findUnique({
@@ -499,9 +500,19 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
     }
 
     const storeName = shopifyRecord.store_name || shopifyRecord.store_url;
-      organizationId = orgRecord.id;
-    const organizationSlug = shopifyRecord.rubik_organization_slug || organizationId.toString();
-    const endpointUrl = `https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${organizationSlug}`;
+    organizationId = orgRecord.id;
+    const organizationIdentifier =
+      shopifyRecord.rubik_organization_slug?.trim() ||
+      shopifyRecord.rubik_organization_id?.toString() ||
+      shopifyRecord.rubik_user_id?.toString();
+
+    if (!organizationIdentifier) {
+      return res.status(404).json({
+        error: 'Missing RubikChat organization identifier. Reconnect RubikChat and try again.',
+      });
+    }
+
+    endpointUrl = `https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${organizationIdentifier}`;
 
     const agentForm = new FormData();
     
@@ -611,6 +622,21 @@ Email: support@rubikchat.com
     agentForm.append('botName', `${storeName} Assistant`);
     agentForm.append('businessType', '{"label":"Other","value":"Other","type":"other"}');
 
+    await prisma.api_logs.create({
+      data: {
+        endpoint: '/api/rubikchat/create-agent',
+        method: 'POST',
+        status: 202,
+        request: JSON.stringify({
+          shop,
+          endpointUrl,
+          organizationIdentifier,
+          rubikUserId: shopifyRecord.rubik_user_id,
+          rubikOrganizationId: shopifyRecord.rubik_organization_id,
+        }),
+      },
+    });
+
     // Add Logging as requested
     console.log('--- CREATE AGENT API CALL ---');
     console.log('URL:', endpointUrl);
@@ -642,13 +668,47 @@ Email: support@rubikchat.com
           agent_id: agentId.toString(),
         }
       });
+
+      await prisma.api_logs.create({
+        data: {
+          endpoint: '/api/rubikchat/create-agent',
+          method: 'POST',
+          status: 200,
+          request: JSON.stringify({ shop, endpointUrl, organizationIdentifier }),
+          response: JSON.stringify(response.data),
+        },
+      });
+
       return res.json({ success: true, agentId });
     } else {
       console.log('Agent created but no agent_id was returned. Response:', response.data);
+      await prisma.api_logs.create({
+        data: {
+          endpoint: '/api/rubikchat/create-agent',
+          method: 'POST',
+          status: 500,
+          request: JSON.stringify({ shop, endpointUrl, organizationIdentifier }),
+          response: JSON.stringify(response.data),
+        },
+      });
       return res.status(500).json({ error: 'Agent created but no ID was returned from proxy', details: response.data });
     }
   } catch (error: any) {
     console.error('Failed to create agent:', error.response?.data || error.message);
+
+    try {
+      await prisma.api_logs.create({
+        data: {
+          endpoint: '/api/rubikchat/create-agent',
+          method: 'POST',
+          status: error.response?.status || 500,
+          request: JSON.stringify({ shop, organizationId, endpointUrl }),
+          response: JSON.stringify(error.response?.data || { message: error.message }),
+        },
+      });
+    } catch (logError) {
+      console.error('Failed to save create-agent log:', logError);
+    }
 
       if (organizationId && error.response?.data?.message?.includes('You have reached the limit of AI Agents')) {
         const fallbackAgent = await prisma.rubikchat_agents.findFirst({
