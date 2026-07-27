@@ -781,14 +781,14 @@ ${productsMarkdown}`;
 // Phase 4: MCP Products Endpoint
 app.get('/api/mcp/products', async (req, res) => {
   try {
-    const organizationId = req.query.organization_id as string;
-    const agentId = req.query.agent_id as string;
+    const organizationId = (req.query.organization_id || req.body?.organization_id) as string;
+    const agentId = (req.query.agent_id || req.body?.agent_id) as string;
 
-    // 1. Validate required query parameters
+    // 1. Validate required parameters
     if (!organizationId || !agentId) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required parameters: organization_id and agent_id are required.'
+        error: 'Missing required parameters: organization_id and agent_id are required (support query params or request body).'
       });
     }
 
