@@ -543,6 +543,27 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
       agentForm.append('organization_id', shopifyRecord.rubik_organization_id.toString());
     }
 
+    // Fetch products from Shopify
+    let productsMarkdown = '';
+    try {
+      const client = new shopify.clients.Rest({
+        session: {
+          shop: shopifyRecord.store_url,
+          accessToken: shopifyRecord.access_token,
+        } as any,
+      });
+
+      const productsResponse: any = await client.get({
+        path: 'products',
+        query: { limit: 250, status: 'active' }
+      });
+      const products = productsResponse.body.products || [];
+      productsMarkdown = convertProductsToMarkdown(products);
+    } catch (prodErr: any) {
+      console.error('Failed to fetch Shopify products for training (non-fatal):', prodErr.message || prodErr);
+      productsMarkdown = '\n\n## Product Catalog\nNo products found or failed to load product catalog.';
+    }
+
     const storeContent = `${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing
 Automate customer service, capture more leads and boost sales with ${storeName} AI Agents. Provide instant support, reduce costs and grow your business.
 Boost sales by 20x and cut support costs. Connect your knowledge base and let ${storeName} handle your entire customer journey automatically.
@@ -616,7 +637,9 @@ ${storeName}, LLC
 1111B S Governors Ave STE 25390
 Dover, DE 19904
 Email: support@rubikchat.com
-© 2026 ${storeName}. All rights reserved.`;
+© 2026 ${storeName}. All rights reserved.
+
+${productsMarkdown}`;
 
     const websiteData = [{
       url: `https://${shopifyRecord.store_url}`,
@@ -754,6 +777,36 @@ Email: support@rubikchat.com
     return res.status(500).json({ error: 'Failed to create agent', details: error.response?.data });
   }
 });
+
+function convertProductsToMarkdown(products: any[]): string {
+  let table = `\n\n## Product Catalog\n\n`;
+  table += `| Product Title | Price | SKU | Inventory Status | Description |\n`;
+  table += `| :--- | :--- | :--- | :--- | :--- |\n`;
+
+  for (const product of products) {
+    for (const variant of product.variants || []) {
+      const price = variant.price ? `$${variant.price}` : 'N/A';
+      const sku = variant.sku || 'N/A';
+      const status = (variant.inventory_quantity ?? 0) > 0 ? 'In Stock' : 'Out of Stock';
+      
+      // Clean up HTML tags from product body and escape pipe characters
+      const cleanDesc = (product.body_html || '')
+        .replace(/<[^>]*>?/gm, '')
+        .replace(/\|/g, '\\|')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 100);
+
+      const titleEscaped = (product.title || '').replace(/\|/g, '\\|');
+      const variantTitleEscaped = (variant.title || '').replace(/\|/g, '\\|');
+      const titleDisplay = `${titleEscaped} (${variantTitleEscaped !== 'Default Title' ? variantTitleEscaped : 'Standard'})`;
+
+      table += `| ${titleDisplay} | ${price} | ${sku} | ${status} | ${cleanDesc}... |\n`;
+    }
+  }
+
+  return table;
+}
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
