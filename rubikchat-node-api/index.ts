@@ -778,6 +778,102 @@ ${productsMarkdown}`;
   }
 });
 
+// Phase 4: MCP Products Endpoint
+app.get('/api/mcp/products', async (req, res) => {
+  try {
+    const organizationId = req.query.organization_id as string;
+    const agentId = req.query.agent_id as string;
+
+    // 1. Validate required query parameters
+    if (!organizationId || !agentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: organization_id and agent_id are required.'
+      });
+    }
+
+    const orgIdNum = parseInt(organizationId, 10);
+
+    // 2. Query Prisma to verify linked agent and store integration
+    const integration = await prisma.shopify_integrations.findFirst({
+      where: {
+        OR: [
+          { rubik_organization_id: isNaN(orgIdNum) ? undefined : orgIdNum },
+          { rubik_organization_slug: organizationId }
+        ],
+        rubik_agent_id: agentId,
+      }
+    });
+
+    if (!integration) {
+      return res.status(404).json({
+        success: false,
+        error: 'No active Shopify integration or matching agent found for the provided organization_id and agent_id.'
+      });
+    }
+
+    const { store_url, access_token } = integration;
+
+    if (!access_token || !store_url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Linked Shopify store access token or store URL is missing.'
+      });
+    }
+
+    // 3. Fetch products from Shopify Admin REST API
+    const client = new shopify.clients.Rest({
+      session: {
+        shop: store_url,
+        accessToken: access_token,
+      } as any,
+    });
+
+    const shopifyResponse: any = await client.get({
+      path: 'products',
+      query: { limit: 250, status: 'active' }
+    });
+
+    const rawProducts = shopifyResponse.body.products || [];
+
+    // 4. Transform into clean, structured data for AI consumption
+    const products = rawProducts.map((p: any) => ({
+      id: p.id,
+      title: p.title,
+      vendor: p.vendor,
+      product_type: p.product_type,
+      tags: p.tags,
+      description: (p.body_html || '').replace(/<[^>]*>?/gm, '').trim(),
+      variants: (p.variants || []).map((v: any) => ({
+        id: v.id,
+        title: v.title,
+        price: v.price,
+        sku: v.sku,
+        in_stock: (v.inventory_quantity ?? 0) > 0,
+        inventory_quantity: v.inventory_quantity
+      }))
+    }));
+
+    // 5. Return success response
+    return res.status(200).json({
+      success: true,
+      shop: store_url,
+      agent_id: agentId,
+      organization_id: organizationId,
+      total_products: products.length,
+      products
+    });
+
+  } catch (error: any) {
+    console.error('Error in MCP Products API:', error.message || error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch products from Shopify store.',
+      details: error.message || error
+    });
+  }
+});
+
 function convertProductsToMarkdown(products: any[]): string {
   let table = `\n\n## Product Catalog\n\n`;
   table += `| Product Title | Price | SKU | Inventory Status | Description |\n`;
