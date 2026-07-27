@@ -198,9 +198,17 @@ app.get('/widget.js', async (req, res) => {
   }
 
   let agentId = 'YOUR_AGENT_ID'; // fallback
+  let organizationId = '';
   
   if (shop) {
     try {
+      const integration = await prisma.shopify_integrations.findUnique({
+        where: { store_url: shop }
+      });
+      if (integration && integration.rubik_organization_id) {
+        organizationId = String(integration.rubik_organization_id);
+      }
+
       const org = await prisma.rubikchat_organizations.findUnique({
         where: { store_url: shop },
         include: { agents: true }
@@ -220,7 +228,7 @@ app.get('/widget.js', async (req, res) => {
   }
 
   // Use the dynamically retrieved agent ID and append the shop parameter for the public embedded widget
-  const CHAT_IFRAME_URL = `https://app.rubikchat.com/chat/embed?agentId=${agentId}&shop=${shop || ''}`;
+  const CHAT_IFRAME_URL = `https://app.rubikchat.com/chat/embed?agentId=${agentId}&shop=${shop || ''}${organizationId ? `&organizationId=${organizationId}` : ''}`;
 
   res.send(`
     (function() {
