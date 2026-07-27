@@ -778,8 +778,8 @@ ${productsMarkdown}`;
   }
 });
 
-// Phase 4: MCP Products Endpoint
-app.get('/api/mcp/products', async (req, res) => {
+// Phase 4: MCP Products Handler (Accepts both GET and POST)
+const handleMcpProducts = async (req: express.Request, res: express.Response) => {
   try {
     const organizationId = (req.query.organization_id || req.body?.organization_id) as string;
     const agentId = (req.query.agent_id || req.body?.agent_id) as string;
@@ -872,7 +872,10 @@ app.get('/api/mcp/products', async (req, res) => {
       details: error.message || error
     });
   }
-});
+};
+
+app.get('/api/mcp/products', handleMcpProducts);
+app.post('/api/mcp/products', handleMcpProducts);
 
 function convertProductsToMarkdown(products: any[]): string {
   let table = `\n\n## Product Catalog\n\n`;
