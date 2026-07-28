@@ -107,6 +107,35 @@ function ConnectPage() {
     window.open(window.location.origin + '/functions?shop=' + connectedShop, '_blank');
   };
 
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Are you sure you want to disconnect RubikChat from this shop? This will delete all integration configuration.')) {
+      return;
+    }
+    
+    setIsDisconnecting(true);
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const res = await fetch(`${backendUrl}/api/shopify/disconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop: connectedShop }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStatus('idle');
+      } else {
+        alert(data.error || 'Failed to disconnect');
+      }
+    } catch (err) {
+      alert('Network error while disconnecting');
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
   // ==========================================
   // EMBEDDED UI (Inside Shopify Admin)
   // ==========================================
@@ -133,11 +162,20 @@ function ConnectPage() {
 
           {status === 'complete' && (
             <div className="space-y-6">
-              <div className="bg-[#e3f1df] border border-[#aee9d1] rounded-lg p-4 flex items-center space-x-3">
-                <div className="bg-[#00a47c] p-1 rounded-full">
-                  <CheckCircle className="w-4 h-4 text-white" />
+              <div className="bg-[#e3f1df] border border-[#aee9d1] rounded-lg p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-[#00a47c] p-1 rounded-full flex-shrink-0">
+                    <CheckCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-[#202223] font-medium">Successfully Connected</span>
                 </div>
-                <span className="text-[#202223] font-medium">Successfully Connected</span>
+                <button
+                  onClick={handleDisconnect}
+                  disabled={isDisconnecting}
+                  className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50 px-3 py-1.5 hover:bg-[#d6ebd1] rounded-md transition-all"
+                >
+                  {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+                </button>
               </div>
               
               <div>
@@ -221,6 +259,13 @@ function ConnectPage() {
               >
                 <span>Go to Functions Dashboard</span>
                 <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleDisconnect}
+                disabled={isDisconnecting}
+                className="w-full flex items-center justify-center space-x-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 font-medium py-2.5 px-6 rounded-xl transition-all disabled:opacity-50"
+              >
+                <span>{isDisconnecting ? 'Disconnecting...' : 'Disconnect Store'}</span>
               </button>
             </div>
           )}

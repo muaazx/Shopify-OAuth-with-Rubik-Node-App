@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
@@ -24,6 +25,34 @@ export default function Index() {
   
   const isFullyConnected = shopifyConnected && rubikchatConnected;
 
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Are you sure you want to disconnect RubikChat from this shop? This will delete all integration configuration.')) {
+      return;
+    }
+    
+    setIsDisconnecting(true);
+    try {
+      const res = await fetch(`https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/disconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to disconnect');
+      }
+    } catch (err) {
+      alert('Network error while disconnecting');
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
   const handleConnectClick = () => {
     // Open the standalone Vercel frontend in a new tab so it escapes the Shopify iframe
     window.open(`https://shopify-o-auth-with-rubik-node-app.vercel.app?shop=${shop}`, '_blank');
@@ -44,18 +73,41 @@ export default function Index() {
         </div>
 
         {isFullyConnected ? (
-          <div style={{ backgroundColor: "#e3f1df", border: "1px solid #aee9d1", borderRadius: "8px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-            <div style={{ backgroundColor: "#00a47c", color: "white", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
-              ✓
+          <div style={{ backgroundColor: "#e3f1df", border: "1px solid #aee9d1", borderRadius: "8px", padding: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ backgroundColor: "#00a47c", color: "white", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>
+                ✓
+              </div>
+              <div>
+                <h2 style={{ fontSize: "16px", fontWeight: "600", color: "#202223", margin: "0 0 4px 0" }}>
+                  Successfully Connected
+                </h2>
+                <p style={{ margin: "0", color: "#6d7175" }}>
+                  Your store <strong>{shopDetails?.store_name || shop}</strong> is securely connected to RubikChat.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 style={{ fontSize: "16px", fontWeight: "600", color: "#202223", margin: "0 0 4px 0" }}>
-                Successfully Connected
-              </h2>
-              <p style={{ margin: "0", color: "#6d7175" }}>
-                Your store <strong>{shopDetails?.store_name || shop}</strong> is securely connected to RubikChat.
-              </p>
-            </div>
+            <button
+              onClick={handleDisconnect}
+              disabled={isDisconnecting}
+              style={{
+                backgroundColor: "transparent",
+                color: "#d93838",
+                border: "none",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor: "pointer",
+                padding: "8px 12px",
+                borderRadius: "4px",
+                transition: "all 0.2s",
+                marginLeft: "auto",
+                opacity: isDisconnecting ? 0.5 : 1,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f7dcdb'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+            </button>
           </div>
         ) : (
           <div style={{ textAlign: "center", padding: "2rem", backgroundColor: "#f4f6f8", borderRadius: "8px", border: "1px dashed #c9cccf" }}>
