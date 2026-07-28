@@ -475,6 +475,18 @@ app.post('/api/rubikchat/setup', async (req, res) => {
       }
     } catch (err: any) {
       // Check if user already exists
+      const emailErrors = err.response?.data?.errors?.email;
+      const isEmailTaken = (Array.isArray(emailErrors) && emailErrors.some((msg: any) => 
+        String(msg).toLowerCase().includes('taken') || String(msg).toLowerCase().includes('already')
+      )) || String(err.response?.data?.message).toLowerCase().includes('taken') || String(err.response?.data?.message).toLowerCase().includes('already');
+
+      if (isEmailTaken) {
+        return res.status(400).json({
+          success: false,
+          error: "This email is already registered with RubikChat. Please use a different email address."
+        });
+      }
+
       if (err.response?.status !== 422 && err.response?.status !== 400) {
         console.error('Registration failed:', err.response?.data || err.message);
         return res.status(500).json({ error: 'Failed to register with RubikChat', details: err.response?.data });

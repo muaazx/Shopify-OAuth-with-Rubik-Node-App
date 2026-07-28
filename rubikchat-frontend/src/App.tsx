@@ -280,7 +280,7 @@ function ConnectPage() {
                 <p className="text-red-700 text-sm mt-1">
                   {errorMessage}
                 </p>
-                <button onClick={() => setStatus('idle')} className="mt-3 text-red-600 text-xs font-semibold hover:underline">Try Again</button>
+                <button onClick={() => setStatus(connectedShop ? 'shopify_success' : 'idle')} className="mt-3 text-red-600 text-xs font-semibold hover:underline">Try Again</button>
               </div>
             </div>
           )}
