@@ -554,6 +554,152 @@ app.post('/api/rubikchat/setup', async (req, res) => {
   }
 });
 
+// POST /api/rubikchat/register
+app.post('/api/rubikchat/register', async (req: express.Request, res: express.Response) => {
+  const { shop, email } = req.body;
+  if (!shop || !email) {
+    return res.status(400).json({ error: 'Missing shop or email' });
+  }
+
+  try {
+    const shopifyRecord = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!shopifyRecord) {
+      return res.status(404).json({ error: 'Shopify integration not found. Please connect Shopify first.' });
+    }
+
+    // Generate random password (8-10 characters)
+    const generatePassword = () => Math.random().toString(36).slice(-10);
+    const password = generatePassword();
+
+    // Call Register API
+    const registerForm = new FormData();
+    registerForm.append('email', email);
+    registerForm.append('password', password);
+    registerForm.append('domain', shopifyRecord.store_url);
+    registerForm.append('company_name', shopifyRecord.store_name || shopifyRecord.store_url);
+
+    try {
+      const registerRes = await axios.post('https://api-proxy-v1.rubikchat.com/api/wps/register', registerForm, {
+        headers: registerForm.getHeaders(),
+      });
+
+      // Extract user_id and organization_id
+      const resData = registerRes.data;
+      const rubikUserId = resData?.organization?.user_id || resData?.user?.id || resData?.data?.organization?.user_id || resData?.data?.user?.id || null;
+      const rubikOrgId = resData?.organization?.id || resData?.data?.organization?.id || null;
+      const rubikOrgSlug = resData?.organization?.url || resData?.data?.organization?.url || resData?.organization?.slug || null;
+
+      if (rubikUserId || rubikOrgId || rubikOrgSlug) {
+        await prisma.shopify_integrations.update({
+          where: { store_url: shop },
+          data: {
+            ...(rubikUserId ? { rubik_user_id: Number(rubikUserId) } : {}),
+            ...(rubikOrgId ? { rubik_organization_id: Number(rubikOrgId) } : {}),
+            ...(rubikOrgSlug ? { rubik_organization_slug: rubikOrgSlug } : {}),
+          }
+        });
+      }
+
+      return res.json({ success: true, password, message: 'Registration successful' });
+    } catch (err: any) {
+      // Check if user already exists
+      const emailErrors = err.response?.data?.errors?.email;
+      const isEmailTaken = (Array.isArray(emailErrors) && emailErrors.some((msg: any) => 
+        String(msg).toLowerCase().includes('taken') || String(msg).toLowerCase().includes('already')
+      )) || String(err.response?.data?.message).toLowerCase().includes('taken') || String(err.response?.data?.message).toLowerCase().includes('already');
+
+      if (isEmailTaken) {
+        return res.status(400).json({
+          success: false,
+          error: "This email is already registered with RubikChat. Please use a different email address."
+        });
+      }
+
+      console.error('Registration failed:', err.response?.data || err.message);
+      return res.status(500).json({ error: 'Failed to register with RubikChat', details: err.response?.data || err.message });
+    }
+  } catch (error: any) {
+    console.error('RubikChat registration handler error:', error.message);
+    res.status(500).json({ error: 'Internal server error during registration' });
+  }
+});
+
+// POST /api/rubikchat/login
+app.post('/api/rubikchat/login', async (req: express.Request, res: express.Response) => {
+  const { shop, email, password } = req.body;
+  if (!shop || !email || !password) {
+    return res.status(400).json({ error: 'Missing shop, email, or password' });
+  }
+
+  try {
+    const shopifyRecord = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!shopifyRecord) {
+      return res.status(404).json({ error: 'Shopify integration not found. Please connect Shopify first.' });
+    }
+
+    // Call Login API
+    const loginForm = new FormData();
+    loginForm.append('email', email);
+    loginForm.append('password', password);
+
+    const loginResponse = await axios.post('https://api-proxy-v1.rubikchat.com/api/login', loginForm, {
+      headers: loginForm.getHeaders(),
+    });
+
+    const token = loginResponse.data?.token || loginResponse.data?.access_token || loginResponse.data?.data?.token;
+
+    if (!token) {
+      console.error('Login response did not contain a token:', loginResponse.data);
+      return res.status(500).json({ error: 'Failed to retrieve auth token after login' });
+    }
+
+    const loginData = loginResponse.data;
+    const loginUserId = loginData?.user?.id || loginData?.data?.user?.id || loginData?.user_id || loginData?.data?.user_id || null;
+    const loginOrgId = loginData?.organization?.id || loginData?.data?.organization?.id || loginData?.organization_id || loginData?.data?.organization_id || null;
+
+    if (loginUserId || loginOrgId) {
+      await prisma.shopify_integrations.update({
+        where: { store_url: shop },
+        data: {
+          ...(loginUserId ? { rubik_user_id: Number(loginUserId) } : {}),
+          ...(loginOrgId ? { rubik_organization_id: Number(loginOrgId) } : {}),
+        }
+      });
+    }
+
+    // Save to database
+    await prisma.rubikchat_organizations.upsert({
+      where: { store_url: shop },
+      update: {
+        email,
+        password,
+        token,
+        store_name: shopifyRecord.store_name,
+      },
+      create: {
+        store_url: shop,
+        store_name: shopifyRecord.store_name,
+        email,
+        password,
+        token,
+      }
+    });
+
+    return res.json({ success: true, message: 'RubikChat connected and logged in successfully' });
+  } catch (error: any) {
+    console.error('RubikChat login handler error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to log in with RubikChat', details: error.response?.data || error.message });
+  }
+});
+
+
+
 // Phase 4: Create Agent Endpoint
 app.post('/api/rubikchat/create-agent', async (req, res) => {
   const { shop } = req.body;

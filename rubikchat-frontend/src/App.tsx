@@ -14,6 +14,7 @@ function ConnectPage() {
   const [connectedShop, setConnectedShop] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isHovered, setIsHovered] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
   const initialShop = searchParams.get('shop');
@@ -80,22 +81,49 @@ function ConnectPage() {
     if (!email || !connectedShop) return;
     
     setStatus('setting_up_rubikchat');
+    setLoadingMessage('Registering your email...');
     
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-      const res = await fetch(`${backendUrl}/api/rubikchat/setup`, {
+      
+      // Step 1: Register
+      const registerRes = await fetch(`${backendUrl}/api/rubikchat/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shop: connectedShop, email }),
       });
       
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setStatus('complete');
-      } else {
+      const registerData = await registerRes.json();
+      if (!registerRes.ok || !registerData.success) {
         setStatus('error');
-        setErrorMessage(data.error || 'Failed to setup RubikChat');
+        setErrorMessage(registerData.error || 'Failed to register with RubikChat');
+        return;
       }
+
+      // Step 2: Show success and start login
+      setLoadingMessage('Email registered! Logging in to your account...');
+      await new Promise(resolve => setTimeout(resolve, 800)); // Brief pause so they see the success stage
+
+      // Step 3: Login
+      const loginRes = await fetch(`${backendUrl}/api/rubikchat/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          shop: connectedShop, 
+          email, 
+          password: registerData.password 
+        }),
+      });
+
+      const loginData = await loginRes.json();
+      if (!loginRes.ok || !loginData.success) {
+        setStatus('error');
+        setErrorMessage(loginData.error || 'Failed to log in to RubikChat');
+        return;
+      }
+
+      // Complete!
+      setStatus('complete');
     } catch (err) {
       setStatus('error');
       setErrorMessage('Network error while setting up RubikChat');
@@ -327,7 +355,7 @@ function ConnectPage() {
           {status === 'setting_up_rubikchat' && (
             <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-500">
                <Loader2 className="w-10 h-10 text-slate-900 animate-spin" />
-               <p className="text-slate-700 font-medium">Configuring RubikChat AI...</p>
+               <p className="text-slate-700 font-medium">{loadingMessage}</p>
             </div>
           )}
 
