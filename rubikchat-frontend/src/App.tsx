@@ -79,6 +79,13 @@ function ConnectPage() {
 
   const handleSetupRubikchat = async () => {
     if (!email || !connectedShop) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setStatus('error');
+      setErrorMessage('Email not valid, please try again with a valid mail');
+      return;
+    }
     
     setStatus('setting_up_rubikchat');
     setLoadingMessage('Registering your email...');
