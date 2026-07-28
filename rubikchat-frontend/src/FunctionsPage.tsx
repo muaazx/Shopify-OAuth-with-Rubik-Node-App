@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowRight, Loader2, CheckCircle, ArrowLeft, Store } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Sparkles, ArrowRight, Loader2, CheckCircle, Store } from 'lucide-react';
 
 export default function FunctionsPage() {
   const [searchParams] = useSearchParams();
   const shop = searchParams.get('shop');
-  const navigate = useNavigate();
   
   const [isEmbedding, setIsEmbedding] = useState(false);
   const [embedSuccess, setEmbedSuccess] = useState(false);
@@ -94,12 +93,6 @@ export default function FunctionsPage() {
       <div className="relative z-10 max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <button 
-              onClick={() => navigate('/')} 
-              className="p-2 bg-white hover:bg-slate-100 rounded-xl transition-colors border border-slate-200 shadow-sm"
-            >
-              <ArrowLeft className="w-5 h-5 text-slate-600" />
-            </button>
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-slate-900">Enable Functions</h1>
               <p className="text-slate-500 mt-1">Select the functions you want to enable.</p>
