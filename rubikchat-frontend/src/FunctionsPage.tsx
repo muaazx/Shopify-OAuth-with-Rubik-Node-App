@@ -112,7 +112,7 @@ export default function FunctionsPage() {
           </div>
         </div>
 
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-md">
           {/* Create Agent Card */}
           <div className={`bg-white border ${createAgentSuccess ? 'border-emerald-500' : 'border-slate-200 hover:border-slate-300'} rounded-2xl shadow-sm p-6 transition-all duration-300 group`}>
             <div className="flex items-start justify-between mb-6">
