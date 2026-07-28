@@ -284,12 +284,14 @@ app.get('/widget.js', async (req, res) => {
   `);
 });
 
-// Embed Widget via ScriptTag
-app.post('/api/shopify/embed-widget', async (req, res) => {
-  const { shop } = req.body;
+// Embed/Remove Widget via ScriptTag
+app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.Response) => {
+  const { shop, enabled } = req.body;
   if (!shop) {
     return res.status(400).json({ error: 'Missing shop parameter' });
   }
+
+  const shouldEmbed = enabled !== false; // default to true if not specified
 
   try {
     const integrationRecord = await prisma.shopify_integrations.findUnique({
@@ -311,25 +313,33 @@ app.post('/api/shopify/embed-widget', async (req, res) => {
     const existingTags: any = await client.get({ path: 'script_tags' });
     const targetSrc = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js';
     
-    const exists = existingTags?.body?.script_tags?.some((tag: any) => tag.src === targetSrc);
+    const matchingTag = existingTags?.body?.script_tags?.find((tag: any) => tag.src === targetSrc);
 
-    if (!exists) {
-      await client.post({
-        path: 'script_tags',
-        data: {
-          script_tag: {
-            event: 'onload',
-            src: targetSrc,
+    if (shouldEmbed) {
+      if (!matchingTag) {
+        await client.post({
+          path: 'script_tags',
+          data: {
+            script_tag: {
+              event: 'onload',
+              src: targetSrc,
+            },
           },
-        },
-        type: DataType.JSON,
-      });
+          type: DataType.JSON,
+        });
+      }
+      return res.json({ success: true, enabled: true, message: 'Widget embedded successfully!' });
+    } else {
+      if (matchingTag && matchingTag.id) {
+        await client.delete({
+          path: `script_tags/${matchingTag.id}`,
+        });
+      }
+      return res.json({ success: true, enabled: false, message: 'Widget removed successfully!' });
     }
-
-    res.json({ success: true, message: 'Widget embedded successfully!' });
   } catch (error: any) {
-    console.error('Error embedding widget:', error.response?.body || error.message);
-    res.status(500).json({ error: 'Failed to embed widget' });
+    console.error('Error toggling widget:', error.response?.body || error.message);
+    res.status(500).json({ error: 'Failed to toggle widget' });
   }
 });
 
