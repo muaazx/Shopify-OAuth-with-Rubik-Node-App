@@ -313,10 +313,10 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
     const existingTags: any = await client.get({ path: 'script_tags' });
     const targetSrc = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js';
     
-    const matchingTag = existingTags?.body?.script_tags?.find((tag: any) => tag.src === targetSrc);
+    const matchingTags = (existingTags?.body?.script_tags || []).filter((tag: any) => tag.src === targetSrc);
 
     if (shouldEmbed) {
-      if (!matchingTag) {
+      if (matchingTags.length === 0) {
         await client.post({
           path: 'script_tags',
           data: {
@@ -330,10 +330,14 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
       }
       return res.json({ success: true, enabled: true, message: 'Widget embedded successfully!' });
     } else {
-      if (matchingTag && matchingTag.id) {
-        await client.delete({
-          path: `script_tags/${matchingTag.id}`,
-        });
+      if (matchingTags.length > 0) {
+        for (const tag of matchingTags) {
+          if (tag.id) {
+            await client.delete({
+              path: `script_tags/${tag.id}`,
+            });
+          }
+        }
       }
       return res.json({ success: true, enabled: false, message: 'Widget removed successfully!' });
     }
