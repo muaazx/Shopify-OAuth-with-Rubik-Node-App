@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLoaderData, useRevalidator } from "react-router";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
@@ -9,13 +10,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session.shop;
 
   try {
-    const res = await fetch(`https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/status?shop=${shop}`);
-    if (!res.ok) throw new Error("Failed to fetch status");
-    const data = await res.json();
-    
-    return { shop, ...data };
+    const shopifyIntegration = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!shopifyIntegration) {
+      return { 
+        shop, 
+        shopifyConnected: false, 
+        rubikchatConnected: false 
+      };
+    }
+
+    const rubikchatIntegration = await prisma.rubikchat_organizations.findUnique({
+      where: { store_url: shop },
+    });
+
+    return {
+      shop,
+      shopifyConnected: true,
+      rubikchatConnected: !!rubikchatIntegration,
+      shopDetails: {
+        store_name: shopifyIntegration.store_name,
+      }
+    };
   } catch (error) {
-    console.error("Status check failed:", error);
+    console.error("Direct status check failed:", error);
     return { shop, shopifyConnected: false, rubikchatConnected: false };
   }
 };
