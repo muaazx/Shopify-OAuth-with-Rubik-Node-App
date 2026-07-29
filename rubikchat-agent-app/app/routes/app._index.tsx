@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLoaderData, useRevalidator } from "react-router";
+import crypto from "crypto";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
@@ -14,13 +15,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       where: { store_url: shop },
     });
 
-    if (!shopifyIntegration) {
-      return { 
-        shop, 
-        shopifyConnected: false, 
-        rubikchatConnected: false,
-        shopDetails: null as { store_name: string | null } | null,
-      };
+    let token = "";
+    const isShopifyConnected = shopifyIntegration?.access_token && shopifyIntegration.access_token !== "pending";
+
+    if (!isShopifyConnected) {
+      token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+      await prisma.shopify_integrations.upsert({
+        where: { store_url: shop },
+        update: {
+          state_token: token,
+          token_expires_at: expiresAt,
+        },
+        create: {
+          store_url: shop,
+          access_token: "pending",
+          status: "pending",
+          state_token: token,
+          token_expires_at: expiresAt,
+        },
+      });
     }
 
     const rubikchatIntegration = await prisma.rubikchat_organizations.findUnique({
@@ -29,10 +44,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     return {
       shop,
-      shopifyConnected: true,
-      rubikchatConnected: !!rubikchatIntegration,
+      shopifyConnected: Boolean(isShopifyConnected),
+      rubikchatConnected: Boolean(rubikchatIntegration),
+      token,
       shopDetails: {
-        store_name: shopifyIntegration.store_name,
+        store_name: shopifyIntegration?.store_name || null,
       }
     };
   } catch (error) {
@@ -41,13 +57,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop, 
       shopifyConnected: false, 
       rubikchatConnected: false,
+      token: "",
       shopDetails: null as { store_name: string | null } | null,
     };
   }
 };
 
 export default function Index() {
-  const { shop, shopifyConnected, rubikchatConnected, shopDetails } = useLoaderData<typeof loader>();
+  const { shop, shopifyConnected, rubikchatConnected, shopDetails, token } = useLoaderData<typeof loader>();
   
   const isFullyConnected = shopifyConnected && rubikchatConnected;
   const revalidator = useRevalidator();
@@ -139,8 +156,11 @@ export default function Index() {
   };
 
   const handleConnectClick = () => {
-    // Open the standalone Vercel frontend in a new tab so it escapes the Shopify iframe
-    window.open(`https://shopify-o-auth-with-rubik-node-app.vercel.app?shop=${shop}`, '_blank');
+    // Open the standalone Vercel frontend in a new tab with the 1-time token
+    const targetUrl = token
+      ? `https://shopify-o-auth-with-rubik-node-app.vercel.app?shop=${shop}&token=${token}`
+      : `https://shopify-o-auth-with-rubik-node-app.vercel.app?shop=${shop}`;
+    window.open(targetUrl, '_blank');
   };
 
   return (

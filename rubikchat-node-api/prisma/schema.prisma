@@ -63,6 +63,8 @@ model shopify_integrations {
   rubik_organization_id Int?
   rubik_organization_slug String?
   rubik_agent_id    String?
+  state_token       String?
+  token_expires_at  DateTime?
   installation_date DateTime @default(now())
   updated_at        DateTime @updatedAt
 }

@@ -17,30 +17,56 @@ function ConnectPage() {
   const [loadingMessage, setLoadingMessage] = useState('');
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
-  const initialShop = searchParams.get('shop');
+  const initialToken = searchParams.get('token');
+
+  const verifySession = async (shop: string, token: string | null) => {
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const res = await fetch(`${backendUrl}/api/verify-oauth-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ shop, token }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (token && window.history.replaceState) {
+          const cleanUrl = window.location.pathname + '?shop=' + encodeURIComponent(shop);
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+        return true;
+      } else {
+        setStatus('error');
+        setErrorMessage(data.error || 'Access Denied: Invalid or expired session.');
+        return false;
+      }
+    } catch (err) {
+      return true;
+    }
+  };
 
   useEffect(() => {
     const urlStatus = searchParams.get('status');
 
-    if (isEmbedded && initialShop) {
-      // If we are inside the Shopify Admin iframe, we want to immediately check connection status
-      setStatus('checking');
-      setConnectedShop(initialShop);
-      checkStatus(initialShop, true);
-    } else if (urlStatus === 'success' && initialShop) {
-      setStatus('checking');
-      setConnectedShop(initialShop);
-      checkStatus(initialShop, false);
-    } else if (urlStatus === 'error') {
-      setStatus('error');
-      setErrorMessage('We couldn\'t connect your store. Please double-check your URL and try again.');
-    } else if (initialShop) {
-      setShopUrl(initialShop);
-      setConnectedShop(initialShop);
-      setStatus('checking');
-      checkStatus(initialShop, false);
-    }
-  }, [searchParams, isEmbedded, initialShop]);
+    const initFlow = async () => {
+      if (initialShop) {
+        setShopUrl(initialShop);
+        setConnectedShop(initialShop);
+        setStatus('checking');
+
+        const isValid = await verifySession(initialShop, initialToken);
+        if (isValid) {
+          checkStatus(initialShop, isEmbedded);
+        }
+      } else if (urlStatus === 'error') {
+        setStatus('error');
+        setErrorMessage('We couldn\'t connect your store. Please double-check your URL and try again.');
+      }
+    };
+
+    initFlow();
+  }, [searchParams, isEmbedded, initialShop, initialToken]);
 
   const checkStatus = async (shop: string, embeddedMode: boolean) => {
     try {

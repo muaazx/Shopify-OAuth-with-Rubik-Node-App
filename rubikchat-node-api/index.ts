@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { shopifyApi, ApiVersion, DataType } from '@shopify/shopify-api';
@@ -16,6 +17,7 @@ app.use(cors({
   origin: ['http://localhost:5173', 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app', 'https://shopify-o-auth-with-rubik-node-app.vercel.app'],
   credentials: true,
 }));
+app.use(cookieParser());
 app.use(express.json());
 
 const shopify = shopifyApi({
@@ -433,7 +435,66 @@ app.get('/api/status', async (req, res) => {
     console.error('Error fetching status:', error);
     res.status(500).json({ error: 'Failed to fetch status' });
   }
+});// POST /api/verify-oauth-session
+app.post('/api/verify-oauth-session', async (req: express.Request, res: express.Response) => {
+  try {
+    const { shop, token } = req.body || {};
+    const sessionCookie = req.cookies?.rubik_auth_session;
+
+    // 1. Check if valid HttpOnly cookie is present
+    if (sessionCookie) {
+      const activeShop = sessionCookie;
+      if (shop && activeShop !== shop) {
+        res.clearCookie('rubik_auth_session');
+      } else {
+        return res.json({ success: true, shop: activeShop, authenticatedVia: 'cookie' });
+      }
+    }
+
+    // 2. Verify token if shop and token are provided
+    if (shop && token) {
+      const integration = await prisma.shopify_integrations.findFirst({
+        where: {
+          store_url: shop,
+          state_token: token,
+          token_expires_at: {
+            gt: new Date(),
+          },
+        },
+      });
+
+      if (integration) {
+        // Atomically burn the state token
+        await prisma.shopify_integrations.update({
+          where: { id: integration.id },
+          data: {
+            state_token: null,
+            token_expires_at: null,
+          },
+        });
+
+        // Issue HttpOnly session cookie
+        res.cookie('rubik_auth_session', integration.store_url, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none',
+          maxAge: 24 * 60 * 60 * 1000,
+        });
+
+        return res.json({ success: true, shop: integration.store_url, authenticatedVia: 'token' });
+      }
+    }
+
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized or expired session. Please initiate setup from your Shopify Admin dashboard.',
+    });
+  } catch (error: any) {
+    console.error('Error verifying OAuth session:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error during verification' });
+  }
 });
+
 
 // Phase 4: RubikChat Setup (Register & Login)
 app.post('/api/rubikchat/setup', async (req, res) => {
