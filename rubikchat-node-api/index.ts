@@ -125,33 +125,28 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
 });
 
 // Phase 3: RubikChat -> GET /api/shopify/products -> Node -> Read Shopify credentials -> Call Shopify -> Return Products
-app.get('/api/shopify/products', async (req, res) => {
+app.all('/api/shopify/products', async (req: express.Request, res: express.Response) => {
   try {
-    const shop = req.query.shop as string;
+    // Check POST body, GET query params, or headers for shop
+    const shop = (req.body?.shop || req.query?.shop || req.headers["x-shop"]) as string;
 
-    if (!shop) {
-      return res.status(400).json({ error: 'Missing shop query parameter' });
+    if (!shop || shop === "{shop}") {
+      return res.status(400).json({ error: "Missing required shop parameter." });
     }
 
-    // Read Shopify credentials from new table
-    const integrationRecord = await prisma.shopify_integrations.findUnique({
+    // Fetch access_token from Supabase
+    const integration = await prisma.shopify_integrations.findUnique({
       where: { store_url: shop },
     });
 
-    if (!integrationRecord || !integrationRecord.access_token) {
-      return res.status(404).json({ error: 'No active integration found for this shop.' });
+    if (!integration || !integration.access_token) {
+      return res.status(404).json({ error: `No access token found for store: ${shop}` });
     }
 
-    // Call Shopify API to get products
-    const client = new shopify.clients.Graphql({
-      session: {
-        shop: integrationRecord.store_url,
-        accessToken: integrationRecord.access_token,
-      } as any,
-    });
-
-    const response = await client.request(`
-      query {
+    // Query Shopify Admin GraphQL API
+    const shopifyGraphqlUrl = `https://${shop}/admin/api/2024-04/graphql.json`;
+    const query = `
+      query getProducts {
         products(first: 10) {
           edges {
             node {
@@ -159,36 +154,55 @@ app.get('/api/shopify/products', async (req, res) => {
               title
               handle
               status
-              images(first: 1) {
-                edges {
-                  node {
-                    url
-                  }
+              totalInventory
+              priceRangeV2 {
+                minVariantPrice {
+                  amount
+                  currencyCode
                 }
+              }
+              images(first: 1) {
+                edges { node { url } }
               }
             }
           }
         }
       }
-    `);
+    `;
 
-    // Format products
-    const products = (response.data as any)?.products?.edges?.map((e: any) => ({
-      id: e.node.id,
-      title: e.node.title,
-      handle: e.node.handle,
-      status: e.node.status,
-      imageUrl: e.node.images?.edges?.[0]?.node?.url || null,
-    })) || [];
+    const shopifyRes = await fetch(shopifyGraphqlUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": integration.access_token,
+      },
+      body: JSON.stringify({ query }),
+    });
 
-    res.json({
+    const data = await shopifyRes.json();
+
+    if (data.errors) {
+      return res.status(400).json({ error: "Shopify API Error", details: data.errors });
+    }
+
+    const products = (data.data?.products?.edges || []).map(({ node }: any) => ({
+      id: node.id,
+      title: node.title,
+      handle: node.handle,
+      status: node.status,
+      inventory: node.totalInventory,
+      price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
+      imageUrl: node.images.edges[0]?.node?.url || null,
+    }));
+
+    return res.json({
       success: true,
-      shop: integrationRecord.store_url,
+      shop,
       products,
     });
-  } catch (error: any) {
-    console.error('Error fetching products:', error);
-    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  } catch (err: any) {
+    console.error("Products endpoint error:", err);
+    return res.status(500).json({ error: "Internal Server Error", message: err.message });
   }
 });
 
