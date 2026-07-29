@@ -4,3 +4,6 @@ build
 .env
 .DS_Store
 *.sqlite
+
+.vercel
+.env*
