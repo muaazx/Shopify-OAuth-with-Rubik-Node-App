@@ -49,3 +49,51 @@ model Agent {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }
+
+model shopify_integrations {
+  id                String   @id @default(cuid())
+  store_name        String?
+  store_url         String   @unique
+  access_token      String
+  scope             String?
+  currency          String?
+  timezone          String?
+  status            String   @default("connected") // e.g. connected, pending, failed
+  rubik_user_id     Int?
+  rubik_organization_id Int?
+  rubik_organization_slug String?
+  rubik_agent_id    String?
+  installation_date DateTime @default(now())
+  updated_at        DateTime @updatedAt
+}
+
+model rubikchat_organizations {
+  id         String   @id @default(cuid())
+  store_url  String   @unique
+  store_name String?
+  email      String
+  password   String?
+  token      String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  agents     rubikchat_agents[]
+}
+
+model rubikchat_agents {
+  id              String                  @id @default(cuid())
+  organization_id String
+  organization    rubikchat_organizations @relation(fields: [organization_id], references: [id])
+  agent_id        String
+  created_at      DateTime                @default(now())
+  updated_at      DateTime                @updatedAt
+}
+
+model api_logs {
+  id         String   @id @default(cuid())
+  endpoint   String
+  method     String
+  status     Int
+  request    String?
+  response   String?
+  created_at DateTime @default(now())
+}
