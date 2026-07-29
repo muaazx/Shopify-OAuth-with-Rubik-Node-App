@@ -17,6 +17,7 @@ function ConnectPage() {
   const [loadingMessage, setLoadingMessage] = useState('');
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
+  const initialShop = searchParams.get('shop');
   const initialToken = searchParams.get('token');
 
   const verifySession = async (shop: string, token: string | null) => {

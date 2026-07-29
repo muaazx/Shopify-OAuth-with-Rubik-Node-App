@@ -44,6 +44,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     return {
       shop,
+      initialShop: shop,
       shopifyConnected: Boolean(isShopifyConnected),
       rubikchatConnected: Boolean(rubikchatIntegration),
       token,
@@ -55,6 +56,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("Direct status check failed:", error);
     return { 
       shop, 
+      initialShop: "",
       shopifyConnected: false, 
       rubikchatConnected: false,
       token: "",
@@ -90,7 +92,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { shop, shopifyConnected, rubikchatConnected, shopDetails, token } = useLoaderData<typeof loader>();
+  const { shop, initialShop, shopifyConnected, rubikchatConnected, shopDetails, token } = useLoaderData<typeof loader>();
   
   const isFullyConnected = shopifyConnected && rubikchatConnected;
   const revalidator = useRevalidator();
