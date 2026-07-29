@@ -55,7 +55,7 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
       rawRequest: req,
       rawResponse: res,
     });
-    
+
     const session = callbackResponse.session;
 
     // Save initial session info
@@ -86,9 +86,9 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
           }
         }
       `);
-      
+
       const shopData = (shopResponse.data as any)?.shop;
-      
+
       if (shopData) {
         await prisma.shopify_integrations.update({
           where: { store_url: session.shop },
@@ -187,7 +187,7 @@ app.get('/widget.js', async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*'); // Crucial for cross-origin loading from Shopify
 
   let shop = req.query.shop as string;
-  
+
   if (!shop && req.headers.referer) {
     try {
       const refererUrl = new URL(req.headers.referer);
@@ -199,7 +199,7 @@ app.get('/widget.js', async (req, res) => {
 
   let agentId = 'YOUR_AGENT_ID'; // fallback
   let organizationId = '';
-  
+
   if (shop) {
     try {
       const integration = await prisma.shopify_integrations.findUnique({
@@ -213,7 +213,7 @@ app.get('/widget.js', async (req, res) => {
         where: { store_url: shop },
         include: { agents: true }
       });
-      
+
       if (org && org.agents && org.agents.length > 0) {
         // Find the most recently created agent
         const agent = org.agents.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())[0];
@@ -312,7 +312,7 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
     // Check if script tag already exists
     const existingTags: any = await client.get({ path: 'script_tags' });
     const targetSrc = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js';
-    
+
     const matchingTags = (existingTags?.body?.script_tags || []).filter((tag: any) => tag.src === targetSrc);
 
     if (shouldEmbed) {
@@ -490,7 +490,7 @@ app.post('/api/rubikchat/setup', async (req, res) => {
     } catch (err: any) {
       // Check if user already exists
       const emailErrors = err.response?.data?.errors?.email;
-      const isEmailTaken = (Array.isArray(emailErrors) && emailErrors.some((msg: any) => 
+      const isEmailTaken = (Array.isArray(emailErrors) && emailErrors.some((msg: any) =>
         String(msg).toLowerCase().includes('taken') || String(msg).toLowerCase().includes('already')
       )) || String(err.response?.data?.message).toLowerCase().includes('taken') || String(err.response?.data?.message).toLowerCase().includes('already');
 
@@ -621,7 +621,7 @@ app.post('/api/rubikchat/register', async (req: express.Request, res: express.Re
     } catch (err: any) {
       // Check if user already exists
       const emailErrors = err.response?.data?.errors?.email;
-      const isEmailTaken = (Array.isArray(emailErrors) && emailErrors.some((msg: any) => 
+      const isEmailTaken = (Array.isArray(emailErrors) && emailErrors.some((msg: any) =>
         String(msg).toLowerCase().includes('taken') || String(msg).toLowerCase().includes('already')
       )) || String(err.response?.data?.message).toLowerCase().includes('taken') || String(err.response?.data?.message).toLowerCase().includes('already');
 
@@ -752,7 +752,7 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
     endpointUrl = `https://api-proxy-v1.rubikchat.com/api/chatbots/train-chatbot/${organizationIdentifier}`;
 
     const agentForm = new FormData();
-    
+
     // Add explicitly required fields
     if (shopifyRecord.rubik_user_id) {
       agentForm.append('user_id', shopifyRecord.rubik_user_id.toString());
@@ -866,13 +866,13 @@ ${productsMarkdown}`;
       is_fetched: true,
       size: storeContent.length
     }];
-    
+
     agentForm.append('website', JSON.stringify(websiteData));
     agentForm.append('agentType', 'website');
     agentForm.append('instructions', `You are the professional AI assistant for ${storeName}.`);
     agentForm.append('temperature', '0');
     agentForm.append('llm', 'gpt-4o-mini');
-    agentForm.append('initial_messages', '["Welcome :wave: I\'m here to help you explore our website, services, and answers to your questions."]');
+    agentForm.append('initial_messages', '["Welcome! I\'m here to help you explore our website, services, and answers to your questions."]');
     agentForm.append('suggested_messages', '[]');
     agentForm.append('theme', 'light');
     agentForm.append('is_streaming', '1');
@@ -970,27 +970,27 @@ ${productsMarkdown}`;
       console.error('Failed to save create-agent log:', logError);
     }
 
-      if (organizationId && error.response?.data?.message?.includes('You have reached the limit of AI Agents')) {
-        const fallbackAgent = await prisma.rubikchat_agents.findFirst({
-          where: { organization_id: organizationId },
-          orderBy: { created_at: 'desc' },
+    if (organizationId && error.response?.data?.message?.includes('You have reached the limit of AI Agents')) {
+      const fallbackAgent = await prisma.rubikchat_agents.findFirst({
+        where: { organization_id: organizationId },
+        orderBy: { created_at: 'desc' },
+      });
+
+      if (fallbackAgent) {
+        await prisma.shopify_integrations.update({
+          where: { store_url: shop },
+          data: {
+            rubik_agent_id: fallbackAgent.agent_id,
+          },
         });
 
-        if (fallbackAgent) {
-          await prisma.shopify_integrations.update({
-            where: { store_url: shop },
-            data: {
-              rubik_agent_id: fallbackAgent.agent_id,
-            },
-          });
-
-          return res.json({
-            success: true,
-            message: 'Agent already exists',
-            agentId: fallbackAgent.agent_id,
-          });
-        }
+        return res.json({
+          success: true,
+          message: 'Agent already exists',
+          agentId: fallbackAgent.agent_id,
+        });
       }
+    }
 
     return res.status(500).json({ error: 'Failed to create agent', details: error.response?.data });
   }
@@ -1273,7 +1273,7 @@ function convertProductsToMarkdown(products: any[]): string {
       const price = variant.price ? `$${variant.price}` : 'N/A';
       const sku = variant.sku || 'N/A';
       const status = (variant.inventory_quantity ?? 0) > 0 ? 'In Stock' : 'Out of Stock';
-      
+
       // Clean up HTML tags from product body and escape pipe characters
       const cleanDesc = (product.body_html || '')
         .replace(/<[^>]*>?/gm, '')

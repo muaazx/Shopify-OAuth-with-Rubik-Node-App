@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLoaderData } from "react-router";
+import { useState, useEffect } from "react";
+import { useLoaderData, useRevalidator } from "react-router";
 import { authenticate } from "../shopify.server";
 import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -24,8 +24,40 @@ export default function Index() {
   const { shop, shopifyConnected, rubikchatConnected, shopDetails } = useLoaderData<typeof loader>();
   
   const isFullyConnected = shopifyConnected && rubikchatConnected;
+  const revalidator = useRevalidator();
 
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  useEffect(() => {
+    if (isFullyConnected) return;
+
+    const checkStatus = () => {
+      if (revalidator.state === "idle") {
+        revalidator.revalidate();
+      }
+    };
+
+    const interval = setInterval(checkStatus, 4000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        checkStatus();
+      }
+    };
+
+    const handleFocus = () => {
+      checkStatus();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [isFullyConnected, revalidator]);
 
   const handleDisconnect = async () => {
     if (!window.confirm('Are you sure you want to disconnect RubikChat from this shop? This will delete all integration configuration.')) {

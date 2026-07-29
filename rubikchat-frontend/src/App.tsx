@@ -63,6 +63,35 @@ function ConnectPage() {
     }
   };
 
+  useEffect(() => {
+    if (status === 'complete' || !connectedShop) return;
+
+    const checkNow = () => {
+      checkStatus(connectedShop, isEmbedded);
+    };
+
+    const interval = setInterval(checkNow, 4000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkNow();
+      }
+    };
+
+    const handleFocus = () => {
+      checkNow();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [status, connectedShop, isEmbedded]);
+
   const handleConnectShopify = () => {
     if (!shopUrl) return;
     
