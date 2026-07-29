@@ -20,16 +20,21 @@ export default function FunctionsPage() {
       return;
     }
 
+    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('rubik_auth_token') : null;
+    const payload: Record<string, any> = { shop };
+    if (token) payload.token = token;
+    if (storedToken) payload.authToken = storedToken;
+
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
     fetch(`${backendUrl}/api/verify-oauth-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ shop, token }),
+      body: JSON.stringify(payload),
     })
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
+        if (data && data.success) {
           setIsAuthorized(true);
           if (token && window.history.replaceState) {
             window.history.replaceState({}, document.title, window.location.pathname + '?shop=' + encodeURIComponent(shop));

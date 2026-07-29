@@ -204,6 +204,11 @@ function ConnectPage() {
       }
 
       // Complete!
+      if (loginData.token) {
+        localStorage.setItem('rubik_auth_token', loginData.token);
+      } else {
+        localStorage.setItem('rubik_auth_token', 'authenticated');
+      }
       setStatus('complete');
     } catch (err) {
       setStatus('error');

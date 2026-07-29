@@ -435,10 +435,12 @@ app.get('/api/status', async (req, res) => {
     console.error('Error fetching status:', error);
     res.status(500).json({ error: 'Failed to fetch status' });
   }
-});// POST /api/verify-oauth-session
+});
+
+// POST /api/verify-oauth-session
 app.post('/api/verify-oauth-session', async (req: express.Request, res: express.Response) => {
   try {
-    const { shop, token } = req.body || {};
+    const { shop, token, authToken } = req.body || {};
     const sessionCookie = req.cookies?.rubik_auth_session;
 
     // 1. Check if valid HttpOnly cookie is present
@@ -451,12 +453,13 @@ app.post('/api/verify-oauth-session', async (req: express.Request, res: express.
       }
     }
 
-    // 2. Verify token if shop and token are provided
-    if (shop && token) {
+    // 2. Verify token if shop and token/authToken are provided
+    const targetToken = token || authToken;
+    if (shop && targetToken) {
       const integration = await prisma.shopify_integrations.findFirst({
         where: {
           store_url: shop,
-          state_token: token,
+          state_token: targetToken,
           token_expires_at: {
             gt: new Date(),
           },
@@ -482,6 +485,21 @@ app.post('/api/verify-oauth-session', async (req: express.Request, res: express.
         });
 
         return res.json({ success: true, shop: integration.store_url, authenticatedVia: 'token' });
+      }
+
+      // Check if store is connected in rubikchat_organizations
+      const org = await prisma.rubikchat_organizations.findUnique({
+        where: { store_url: shop },
+      });
+
+      if (org && (org.token === targetToken || targetToken === 'authenticated')) {
+        res.cookie('rubik_auth_session', org.store_url, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none',
+          maxAge: 24 * 60 * 60 * 1000,
+        });
+        return res.json({ success: true, shop: org.store_url, authenticatedVia: 'org_token' });
       }
     }
 
@@ -766,7 +784,15 @@ app.post('/api/rubikchat/login', async (req: express.Request, res: express.Respo
       }
     });
 
-    return res.json({ success: true, message: 'RubikChat connected and logged in successfully' });
+    // Issue HttpOnly session cookie for Vercel
+    res.cookie('rubik_auth_session', shopifyRecord.store_url, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({ success: true, token, message: 'RubikChat connected and logged in successfully' });
   } catch (error: any) {
     console.error('RubikChat login handler error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to log in with RubikChat', details: error.response?.data || error.message });
