@@ -4,8 +4,15 @@ import { Sparkles, ArrowRight, Loader2, CheckCircle, Store } from 'lucide-react'
 
 export default function FunctionsPage() {
   const [searchParams] = useSearchParams();
+  const shop = searchParams.get('shop');
   const token = searchParams.get('token');
+
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [isEmbedding, setIsEmbedding] = useState<boolean>(false);
+  const [embedSuccess, setEmbedSuccess] = useState<boolean>(false);
+  const [isCreatingAgent, setIsCreatingAgent] = useState<boolean>(false);
+  const [createAgentSuccess, setCreateAgentSuccess] = useState<boolean>(false);
+  const [storeName, setStoreName] = useState<string>('');
 
   useEffect(() => {
     if (!shop) {
