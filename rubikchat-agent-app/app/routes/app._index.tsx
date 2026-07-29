@@ -15,39 +15,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       where: { store_url: shop },
     });
 
-    let token = "";
-    const isShopifyConnected = shopifyIntegration?.access_token && shopifyIntegration.access_token !== "pending";
-
-    if (!isShopifyConnected) {
-      token = crypto.randomBytes(32).toString("hex");
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-      await prisma.shopify_integrations.upsert({
-        where: { store_url: shop },
-        update: {
-          state_token: token,
-          token_expires_at: expiresAt,
-        },
-        create: {
-          store_url: shop,
-          access_token: "pending",
-          status: "pending",
-          state_token: token,
-          token_expires_at: expiresAt,
-        },
-      });
-    }
-
     const rubikchatIntegration = await prisma.rubikchat_organizations.findUnique({
       where: { store_url: shop },
     });
+
+    const isShopifyConnected = shopifyIntegration?.access_token && shopifyIntegration.access_token !== "pending";
 
     return {
       shop,
       initialShop: shop,
       shopifyConnected: Boolean(isShopifyConnected),
       rubikchatConnected: Boolean(rubikchatIntegration),
-      token,
       shopDetails: {
         store_name: shopifyIntegration?.store_name || null,
       }
@@ -59,7 +37,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       initialShop: "",
       shopifyConnected: false, 
       rubikchatConnected: false,
-      token: "",
       shopDetails: null as { store_name: string | null } | null,
     };
   }
@@ -92,7 +69,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { shop, initialShop, shopifyConnected, rubikchatConnected, shopDetails, token } = useLoaderData<typeof loader>();
+  const { shop, initialShop, shopifyConnected, rubikchatConnected, shopDetails } = useLoaderData<typeof loader>();
   
   const isFullyConnected = shopifyConnected && rubikchatConnected;
   const revalidator = useRevalidator();

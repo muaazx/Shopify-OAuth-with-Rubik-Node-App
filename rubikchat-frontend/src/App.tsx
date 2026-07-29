@@ -21,6 +21,9 @@ function ConnectPage() {
   const initialToken = searchParams.get('token');
 
   const verifySession = async (shop: string, token: string | null) => {
+    if (!token) {
+      return true;
+    }
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
       const res = await fetch(`${backendUrl}/api/verify-oauth-session`, {
