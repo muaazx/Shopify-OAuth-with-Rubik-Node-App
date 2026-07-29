@@ -452,64 +452,86 @@ app.post('/api/verify-oauth-session', async (req: express.Request, res: express.
     const { shop, token, authToken } = req.body || {};
     const sessionCookie = req.cookies?.rubik_auth_session;
 
+    let authenticatedShop = null;
+    let authenticatedVia = null;
+
     // 1. Check if valid HttpOnly cookie is present
     if (sessionCookie) {
-      const activeShop = sessionCookie;
-      if (shop && activeShop !== shop) {
+      if (shop && sessionCookie !== shop) {
         res.clearCookie('rubik_auth_session');
       } else {
-        return res.json({ success: true, shop: activeShop, authenticatedVia: 'cookie' });
+        authenticatedShop = sessionCookie;
+        authenticatedVia = 'cookie';
       }
     }
 
     // 2. Verify token if shop and token/authToken are provided
-    const targetToken = token || authToken;
-    if (shop && targetToken) {
-      const integration = await prisma.shopify_integrations.findFirst({
-        where: {
-          store_url: shop,
-          state_token: targetToken,
-          token_expires_at: {
-            gt: new Date(),
-          },
-        },
-      });
-
-      if (integration) {
-        // Atomically burn the state token
-        await prisma.shopify_integrations.update({
-          where: { id: integration.id },
-          data: {
-            state_token: null,
-            token_expires_at: null,
+    if (!authenticatedShop && shop) {
+      const targetToken = token || authToken;
+      if (targetToken) {
+        const integration = await prisma.shopify_integrations.findFirst({
+          where: {
+            store_url: shop,
+            state_token: targetToken,
+            token_expires_at: {
+              gt: new Date(),
+            },
           },
         });
 
-        // Issue HttpOnly session cookie
-        res.cookie('rubik_auth_session', integration.store_url, {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'none',
-          maxAge: 24 * 60 * 60 * 1000,
-        });
+        if (integration) {
+          // Atomically burn the state token
+          await prisma.shopify_integrations.update({
+            where: { id: integration.id },
+            data: {
+              state_token: null,
+              token_expires_at: null,
+            },
+          });
 
-        return res.json({ success: true, shop: integration.store_url, authenticatedVia: 'token' });
+          authenticatedShop = integration.store_url;
+          authenticatedVia = 'token';
+        } else {
+          // Check if store is connected in rubikchat_organizations
+          const org = await prisma.rubikchat_organizations.findUnique({
+            where: { store_url: shop },
+          });
+
+          if (org && (org.token === targetToken || targetToken === 'authenticated')) {
+            authenticatedShop = org.store_url;
+            authenticatedVia = 'org_token';
+          }
+        }
+
+        if (authenticatedShop) {
+          // Issue HttpOnly session cookie
+          res.cookie('rubik_auth_session', authenticatedShop, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            maxAge: 24 * 60 * 60 * 1000,
+          });
+        }
       }
+    }
 
-      // Check if store is connected in rubikchat_organizations
-      const org = await prisma.rubikchat_organizations.findUnique({
-        where: { store_url: shop },
+    if (authenticatedShop) {
+      // Authenticated successfully. Fetch integration to check isLinked status.
+      const integrationRecord = await prisma.shopify_integrations.findUnique({
+        where: { store_url: authenticatedShop },
       });
 
-      if (org && (org.token === targetToken || targetToken === 'authenticated')) {
-        res.cookie('rubik_auth_session', org.store_url, {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'none',
-          maxAge: 24 * 60 * 60 * 1000,
-        });
-        return res.json({ success: true, shop: org.store_url, authenticatedVia: 'org_token' });
+      if (!integrationRecord) {
+        return res.status(401).json({ success: false, error: 'Integration not found for this shop.' });
       }
+
+      return res.json({
+        success: true,
+        shop: authenticatedShop,
+        authenticatedVia,
+        isLinked: Boolean(integrationRecord.rubik_organization_id),
+        organizationId: integrationRecord.rubik_organization_id || null,
+      });
     }
 
     return res.status(401).json({
