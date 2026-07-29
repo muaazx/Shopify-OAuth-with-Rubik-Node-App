@@ -59,6 +59,11 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
     });
 
     const session = callbackResponse.session;
+    
+    // Generate state_token
+    const crypto = require('crypto');
+    const stateToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
 
     // Save initial session info
     await prisma.shopify_integrations.upsert({
@@ -67,12 +72,16 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
         access_token: session.accessToken as string,
         scope: session.scope,
         status: 'connected',
+        state_token: stateToken,
+        token_expires_at: tokenExpiresAt,
       },
       create: {
         store_url: session.shop,
         access_token: session.accessToken as string,
         scope: session.scope,
         status: 'connected',
+        state_token: stateToken,
+        token_expires_at: tokenExpiresAt,
       }
     });
 
@@ -105,13 +114,13 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
       console.error('Failed to fetch shop details (non-fatal):', graphQlError);
     }
 
-    // Redirect to frontend UI with success flag
+    // Redirect to frontend UI with token
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/?status=success&shop=${session.shop}`);
+    res.redirect(`${frontendUrl}/functions?shop=${session.shop}&token=${stateToken}`);
   } catch (error) {
     console.error('OAuth Callback Error:', error);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/?status=error&message=auth_failed`);
+    res.redirect(`${frontendUrl}/functions?status=error&message=auth_failed`);
   }
 });
 
