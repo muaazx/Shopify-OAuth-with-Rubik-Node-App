@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useLoaderData, useRevalidator } from "react-router";
+import { useLoaderData, useRevalidator, useFetcher } from "react-router";
 import crypto from "crypto";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs, HeadersFunction } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -63,13 +63,46 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  const stateToken = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min expiry
+
+  await prisma.shopify_integrations.upsert({
+    where: { store_url: shop },
+    update: {
+      state_token: stateToken,
+      token_expires_at: expiresAt,
+    },
+    create: {
+      store_url: shop,
+      access_token: "pending",
+      status: "pending",
+      state_token: stateToken,
+      token_expires_at: expiresAt,
+    },
+  });
+
+  const redirectUrl = `https://shopify-o-auth-with-rubik-node-app.vercel.app?shop=${encodeURIComponent(shop)}&token=${stateToken}`;
+  return { redirectUrl };
+};
+
 export default function Index() {
   const { shop, shopifyConnected, rubikchatConnected, shopDetails, token } = useLoaderData<typeof loader>();
   
   const isFullyConnected = shopifyConnected && rubikchatConnected;
   const revalidator = useRevalidator();
+  const fetcher = useFetcher<typeof action>();
 
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  useEffect(() => {
+    if (fetcher.data?.redirectUrl) {
+      window.open(fetcher.data.redirectUrl, "_blank");
+    }
+  }, [fetcher.data]);
 
   useEffect(() => {
     if (isFullyConnected) return;
@@ -156,11 +189,7 @@ export default function Index() {
   };
 
   const handleConnectClick = () => {
-    // Open the standalone Vercel frontend in a new tab with the 1-time token
-    const targetUrl = token
-      ? `https://shopify-o-auth-with-rubik-node-app.vercel.app?shop=${shop}&token=${token}`
-      : `https://shopify-o-auth-with-rubik-node-app.vercel.app?shop=${shop}`;
-    window.open(targetUrl, '_blank');
+    fetcher.submit({}, { method: "post" });
   };
 
   return (

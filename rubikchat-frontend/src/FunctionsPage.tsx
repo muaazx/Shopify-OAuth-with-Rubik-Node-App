@@ -4,18 +4,38 @@ import { Sparkles, ArrowRight, Loader2, CheckCircle, Store } from 'lucide-react'
 
 export default function FunctionsPage() {
   const [searchParams] = useSearchParams();
-  const shop = searchParams.get('shop');
-  
-  const [isEmbedding, setIsEmbedding] = useState(false);
-  const [embedSuccess, setEmbedSuccess] = useState(false);
-  
-  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
-  const [createAgentSuccess, setCreateAgentSuccess] = useState(false);
-
-  const [storeName, setStoreName] = useState('');
+  const token = searchParams.get('token');
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (shop) {
+    if (!shop) {
+      setIsAuthorized(false);
+      return;
+    }
+
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    fetch(`${backendUrl}/api/verify-oauth-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ shop, token }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setIsAuthorized(true);
+          if (token && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname + '?shop=' + encodeURIComponent(shop));
+          }
+        } else {
+          setIsAuthorized(false);
+        }
+      })
+      .catch(() => setIsAuthorized(false));
+  }, [shop, token]);
+
+  useEffect(() => {
+    if (shop && isAuthorized) {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
       fetch(`${backendUrl}/api/status?shop=${shop}`)
         .then(res => res.json())
@@ -32,7 +52,7 @@ export default function FunctionsPage() {
         })
         .catch(console.error);
     }
-  }, [shop]);
+  }, [shop, isAuthorized]);
 
   const handleToggleWidget = async () => {
     if (!shop || !createAgentSuccess) return;
@@ -97,6 +117,33 @@ export default function FunctionsPage() {
       setIsCreatingAgent(false);
     }
   };
+
+  if (isAuthorized === null) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
+        <div className="flex items-center space-x-3 text-slate-600 font-medium">
+          <Loader2 className="w-6 h-6 animate-spin text-slate-900" />
+          <span>Verifying session authorization...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthorized === false) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white border border-red-200 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-sm">
+          <div className="mx-auto bg-red-100 w-12 h-12 rounded-full flex items-center justify-center">
+            <span className="text-red-600 font-bold text-xl">✕</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Access Denied</h1>
+          <p className="text-slate-500 text-sm leading-relaxed">
+            Invalid, expired, or unauthenticated session link. Please connect directly from your Shopify Admin dashboard.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 relative font-sans">
