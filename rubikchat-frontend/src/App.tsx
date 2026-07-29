@@ -92,6 +92,21 @@ function ConnectPage() {
     };
   }, [status, connectedShop, isEmbedded]);
 
+  useEffect(() => {
+    if (status === 'complete') {
+      if (window.opener) {
+        window.opener.postMessage({ type: 'RUBIKCHAT_CONNECTED' }, '*');
+      }
+      try {
+        const channel = new BroadcastChannel('rubikchat_oauth_channel');
+        channel.postMessage({ type: 'RUBIKCHAT_CONNECTED' });
+        channel.close();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [status]);
+
   const handleConnectShopify = () => {
     if (!shopUrl) return;
     

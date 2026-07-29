@@ -18,7 +18,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return { 
         shop, 
         shopifyConnected: false, 
-        rubikchatConnected: false 
+        rubikchatConnected: false,
+        shopDetails: null as { store_name: string | null } | null,
       };
     }
 
@@ -36,7 +37,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
   } catch (error) {
     console.error("Direct status check failed:", error);
-    return { shop, shopifyConnected: false, rubikchatConnected: false };
+    return { 
+      shop, 
+      shopifyConnected: false, 
+      rubikchatConnected: false,
+      shopDetails: null as { store_name: string | null } | null,
+    };
   }
 };
 
@@ -57,8 +63,31 @@ export default function Index() {
       }
     };
 
-    const interval = setInterval(checkStatus, 4000);
+    // 1. Listen for BroadcastChannel message from OAuth window/tab
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("rubikchat_oauth_channel");
+      channel.onmessage = (event) => {
+        if (event.data?.type === "RUBIKCHAT_CONNECTED") {
+          checkStatus();
+        }
+      };
+    } catch (e) {
+      console.error("BroadcastChannel error:", e);
+    }
 
+    // 2. Listen for postMessage from popups
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "RUBIKCHAT_CONNECTED") {
+        checkStatus();
+      }
+    };
+    window.addEventListener("message", handleMessage);
+
+    // 3. Fallback: Active Polling using remix revalidator every 3 seconds
+    const interval = setInterval(checkStatus, 3000);
+
+    // 4. Listen for focus / visibilitychange
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         checkStatus();
@@ -73,7 +102,11 @@ export default function Index() {
     window.addEventListener("focus", handleFocus);
 
     return () => {
+      if (channel) {
+        channel.close();
+      }
       clearInterval(interval);
+      window.removeEventListener("message", handleMessage);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
     };
@@ -194,5 +227,9 @@ export default function Index() {
 }
 
 export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs);
+  const parentHeaders = boundary.headers(headersArgs);
+  return {
+    ...parentHeaders,
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  };
 };

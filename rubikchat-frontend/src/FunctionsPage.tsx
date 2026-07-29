@@ -78,6 +78,16 @@ export default function FunctionsPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setCreateAgentSuccess(true);
+        if (window.opener) {
+          window.opener.postMessage({ type: 'RUBIKCHAT_CONNECTED' }, '*');
+        }
+        try {
+          const channel = new BroadcastChannel('rubikchat_oauth_channel');
+          channel.postMessage({ type: 'RUBIKCHAT_CONNECTED' });
+          channel.close();
+        } catch (e) {
+          console.error(e);
+        }
       } else {
         alert(data.error || 'Failed to create agent');
       }
