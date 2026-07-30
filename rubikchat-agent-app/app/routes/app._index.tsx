@@ -144,29 +144,18 @@ export default function Index() {
     };
   }, [isFullyConnected, revalidator]);
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = () => {
     if (!window.confirm('Are you sure you want to disconnect RubikChat from this shop? This will delete all integration configuration.')) {
       return;
     }
     
     setIsDisconnecting(true);
-    try {
-      const res = await fetch(`https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/disconnect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shop }),
-      });
-      
-      const data = await res.json();
-      if (res.ok && data.success) {
-        window.location.reload();
-      } else {
-        alert(data.error || 'Failed to disconnect');
-      }
-    } catch (err) {
-      alert('Network error while disconnecting');
-    } finally {
-      setIsDisconnecting(false);
+    const disconnectUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/disconnect?shop=${encodeURIComponent(shop)}`;
+
+    if (window.top) {
+      window.top.location.href = disconnectUrl;
+    } else {
+      window.location.href = disconnectUrl;
     }
   };
 
