@@ -243,7 +243,10 @@ export default function Index() {
               href={`https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={handleConnectClick}
+              data-app-bridge="false"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
               style={{ 
                 backgroundColor: "#2c6ecb", 
                 color: "white", 
@@ -252,14 +255,13 @@ export default function Index() {
                 borderRadius: "4px", 
                 fontSize: "15px", 
                 fontWeight: "600", 
-                cursor: isConnecting ? "not-allowed" : "pointer",
-                opacity: isConnecting ? 0.75 : 1,
+                cursor: "pointer",
                 boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 textDecoration: "none",
                 display: "inline-block"
               }}
             >
-              {isConnecting ? "↻ Connecting to RubikChat..." : "Connect with RubikChat ↗"}
+              Connect with RubikChat ↗
             </a>
           </div>
         )}
