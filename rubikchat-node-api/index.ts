@@ -89,6 +89,8 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
       }
     });
 
+    console.log(`✅ [Database] Token saved successfully for ${shop}`);
+
     // Fetch store details (Name, Currency, Timezone)
     try {
       const client = new shopify.clients.Graphql({ session });
@@ -116,41 +118,6 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
       }
     } catch (graphQlError) {
       console.error('Failed to fetch shop details (non-fatal):', graphQlError);
-    }
-
-    try {
-      const restClient = new shopify.clients.Rest({
-        session: {
-          shop: shop,
-          accessToken: accessToken as string,
-        } as any,
-      });
-
-      const existingTags: any = await restClient.get({ path: 'script_tags' });
-      const scriptList = existingTags?.body?.script_tags || [];
-      const hasScript = scriptList.some((tag: any) =>
-        tag.src && tag.src.includes('widget.js')
-      );
-
-      if (!hasScript) {
-        const widgetJsUrl = 'https://shopify-o-auth-with-rubik-node-app.vercel.app/widget.js';
-
-        const scriptTagRes: any = await restClient.post({
-          path: 'script_tags',
-          data: {
-            script_tag: {
-              event: 'onload',
-              src: widgetJsUrl,
-            },
-          },
-          type: DataType.JSON,
-        });
-        console.log("✅ [ScriptTag Injected Successfully]:", scriptTagRes.body);
-      } else {
-        console.log(`ℹ️ [ScriptTag] Widget script tag already present on ${shop}`);
-      }
-    } catch (scriptErr: any) {
-      console.error("❌ [ScriptTag Injection Error]:", scriptErr?.response?.body || scriptErr?.message);
     }
 
     // Redirect to frontend onboarding UI with shop and state_token
