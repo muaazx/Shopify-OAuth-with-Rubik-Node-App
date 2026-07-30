@@ -7,7 +7,7 @@ application_url = "https://rubik-chat-lead-gen-node-server-backend-production-0f
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
 
 [webhooks]
 api_version = "2026-10"
