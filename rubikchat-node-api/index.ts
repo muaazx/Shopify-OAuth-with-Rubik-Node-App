@@ -61,7 +61,8 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
     });
 
     const session = callbackResponse.session;
-    console.log("✅ Successfully received fresh access token:", session?.accessToken ? "TOKEN_VALID" : "NO_TOKEN");
+    const { shop, accessToken } = session;
+    console.log(`🔑 Access Token Received for ${shop}:`, accessToken ? `${accessToken.substring(0, 10)}...` : "NONE");
 
     // Generate state_token
     const crypto = require('crypto');
@@ -70,17 +71,17 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
 
     // Save initial session info
     await prisma.shopify_integrations.upsert({
-      where: { store_url: session.shop },
+      where: { store_url: shop },
       update: {
-        access_token: session.accessToken as string,
+        access_token: accessToken as string,
         scope: session.scope,
         status: 'connected',
         state_token: stateToken,
         token_expires_at: tokenExpiresAt,
       },
       create: {
-        store_url: session.shop,
-        access_token: session.accessToken as string,
+        store_url: shop,
+        access_token: accessToken as string,
         scope: session.scope,
         status: 'connected',
         state_token: stateToken,
@@ -105,7 +106,7 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
 
       if (shopData) {
         await prisma.shopify_integrations.update({
-          where: { store_url: session.shop },
+          where: { store_url: shop },
           data: {
             store_name: shopData.name,
             currency: shopData.currencyCode,
@@ -116,11 +117,12 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
     } catch (graphQlError) {
       console.error('Failed to fetch shop details (non-fatal):', graphQlError);
     }
+
     try {
       const restClient = new shopify.clients.Rest({
         session: {
-          shop: session.shop,
-          accessToken: session.accessToken as string,
+          shop: shop,
+          accessToken: accessToken as string,
         } as any,
       });
 
@@ -133,7 +135,7 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
       if (!hasScript) {
         const widgetJsUrl = 'https://shopify-o-auth-with-rubik-node-app.vercel.app/widget.js';
 
-        await restClient.post({
+        const scriptTagRes: any = await restClient.post({
           path: 'script_tags',
           data: {
             script_tag: {
@@ -143,12 +145,12 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
           },
           type: DataType.JSON,
         });
-        console.log(`✅ [ScriptTag] Successfully injected widget.js into ${session.shop}`);
+        console.log("✅ [ScriptTag Injected Successfully]:", scriptTagRes.body);
       } else {
-        console.log(`ℹ️ [ScriptTag] Widget script tag already present on ${session.shop}`);
+        console.log(`ℹ️ [ScriptTag] Widget script tag already present on ${shop}`);
       }
-    } catch (scriptError: any) {
-      console.error('⚠️ [ScriptTag Injection Warning]:', scriptError?.response?.body || scriptError?.message);
+    } catch (scriptErr: any) {
+      console.error("❌ [ScriptTag Injection Error]:", scriptErr?.response?.body || scriptErr?.message);
     }
 
     // Redirect to frontend onboarding UI with shop and state_token
