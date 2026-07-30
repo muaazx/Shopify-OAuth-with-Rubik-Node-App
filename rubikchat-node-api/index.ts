@@ -372,35 +372,39 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
   }
 });
 
-// POST /api/shopify/disconnect
-app.post('/api/shopify/disconnect', async (req: express.Request, res: express.Response) => {
-  const { shop } = req.body;
-  if (!shop) {
-    return res.status(400).json({ error: 'Missing shop parameter' });
-  }
+// ALL /api/shopify/disconnect
+app.all('/api/shopify/disconnect', async (req: express.Request, res: express.Response) => {
+  const shop = (req.query.shop || req.body?.shop) as string;
 
   try {
-    // 1. Find the rubikchat_organization to get its agents
-    const org = await prisma.rubikchat_organizations.findUnique({
-      where: { store_url: shop },
-    });
-
-    if (org) {
-      // Delete associated agents
-      await prisma.rubikchat_agents.deleteMany({
-        where: { organization_id: org.id },
+    if (shop) {
+      // 1. Find the rubikchat_organization to get its agents
+      const org = await prisma.rubikchat_organizations.findUnique({
+        where: { store_url: shop },
       });
 
-      // Delete the organization
-      await prisma.rubikchat_organizations.delete({
-        where: { id: org.id },
+      if (org) {
+        // Delete associated agents
+        await prisma.rubikchat_agents.deleteMany({
+          where: { organization_id: org.id },
+        });
+
+        // Delete the organization
+        await prisma.rubikchat_organizations.delete({
+          where: { id: org.id },
+        });
+      }
+
+      // 2. Delete the shopify_integrations record
+      await prisma.shopify_integrations.deleteMany({
+        where: { store_url: shop },
       });
     }
 
-    // 2. Delete the shopify_integrations record
-    await prisma.shopify_integrations.deleteMany({
-      where: { store_url: shop },
-    });
+    if (req.method === 'GET' || req.query.shop) {
+      const storeName = shop ? shop.replace('.myshopify.com', '') : 'rubikchat-test-store';
+      return res.redirect(`https://admin.shopify.com/store/${storeName}/apps/rubikchat-agent-app-1/app`);
+    }
 
     return res.json({ success: true, message: 'Disconnected successfully.' });
   } catch (error: any) {
