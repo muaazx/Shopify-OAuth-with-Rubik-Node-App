@@ -323,13 +323,9 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
 
   try {
     // Update internal widget status in Supabase (No Shopify API call required!)
-    await prisma.shopify_integrations.upsert({
+    await prisma.shopify_integrations.updateMany({
       where: { store_url: shop },
-      update: {
-        status: isEnabled ? 'widget_enabled' : 'connected',
-      },
-      create: {
-        store_url: shop,
+      data: {
         status: isEnabled ? 'widget_enabled' : 'connected',
       },
     });
