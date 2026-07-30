@@ -226,28 +226,18 @@ app.get('/widget.js', async (req, res) => {
   }
 
   let agentId = 'YOUR_AGENT_ID'; // fallback
-  let organizationId = '';
 
   if (shop) {
     try {
-      const integration = await prisma.shopify_integrations.findUnique({
-        where: { store_url: shop }
-      });
-      if (integration && integration.rubik_organization_id) {
-        organizationId = String(integration.rubik_organization_id);
-      }
-
       const org = await prisma.rubikchat_organizations.findUnique({
         where: { store_url: shop },
         include: { agents: true }
       });
 
       if (org && org.agents && org.agents.length > 0) {
-        // Find the most recently created agent
         const agent = org.agents.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())[0];
         agentId = agent.agent_id;
       } else if (org && org.token) {
-        // Fallback to the organization token if no agent is explicitly created
         agentId = org.token;
       }
     } catch (error) {
@@ -255,17 +245,33 @@ app.get('/widget.js', async (req, res) => {
     }
   }
 
-  // Use the dynamically retrieved agent ID and append the shop parameter for the public embedded widget
   const CHAT_IFRAME_URL = `https://widget.rubikchat.com/chatbot?id=${agentId}`;
 
   res.send(`
     (function() {
-      console.log('RubikChat Widget Loaded Successfully!');
+      var shop = (window.Shopify && window.Shopify.shop) || location.hostname;
+      var API_BASE = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app';
+
+      async function checkAndRenderWidget() {
+        try {
+          var res = await fetch(API_BASE + '/api/widget/status?shop=' + encodeURIComponent(shop));
+          var data = await res.json();
+          if (data.enabled) {
+            createWidget();
+          } else {
+            var btn = document.getElementById('rubikchat-floating-btn');
+            var container = document.getElementById('rubikchat-iframe-container');
+            if (btn) btn.remove();
+            if (container) container.remove();
+          }
+        } catch (e) {
+          console.error('RubikChat widget check failed:', e);
+        }
+      }
 
       function createWidget() {
         if (document.getElementById('rubikchat-floating-btn')) return;
 
-        // 1. Create the Floating Button
         var button = document.createElement('div');
         button.id = 'rubikchat-floating-btn';
         button.innerHTML = '💬';
@@ -274,39 +280,35 @@ app.get('/widget.js', async (req, res) => {
         button.onmouseover = function() { button.style.transform = 'scale(1.08)'; };
         button.onmouseout = function() { button.style.transform = 'scale(1)'; };
 
-        // 2. Create the Chat Iframe Container
         var iframeContainer = document.createElement('div');
         iframeContainer.id = 'rubikchat-iframe-container';
         iframeContainer.style.cssText = 'position: fixed; bottom: 90px; right: 20px; width: 400px; height: 600px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999999; display: none; background: #ffffff;';
 
-        // 3. Create the Iframe pointing to your RubikChat agent
         var iframe = document.createElement('iframe');
         iframe.src = '${CHAT_IFRAME_URL}';
         iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
         iframeContainer.appendChild(iframe);
 
-        // 4. Toggle Chat Window Visibility on Click
         var isOpen = false;
         button.onclick = function() {
           isOpen = !isOpen;
           if (isOpen) {
             iframeContainer.style.display = 'block';
-            button.innerHTML = '✖'; // Change button icon to Close
+            button.innerHTML = '✖';
           } else {
             iframeContainer.style.display = 'none';
-            button.innerHTML = '💬'; // Change back to Chat icon
+            button.innerHTML = '💬';
           }
         };
 
-        // 5. Mount elements to DOM
         document.body.appendChild(iframeContainer);
         document.body.appendChild(button);
       }
 
       if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        createWidget();
+        checkAndRenderWidget();
       } else {
-        window.addEventListener('load', createWidget);
+        window.addEventListener('load', checkAndRenderWidget);
       }
     })();
   `);
