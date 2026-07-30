@@ -323,8 +323,8 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
       where: { store_url: shop },
     });
 
-    if (!integrationRecord || !integrationRecord.access_token) {
-      return res.status(404).json({ error: 'Shopify integration not found.' });
+    if (!integrationRecord || !integrationRecord.access_token || integrationRecord.access_token === 'pending') {
+      return res.status(401).json({ error: 'Store requires re-authentication to grant widget permissions.' });
     }
 
     const client = new shopify.clients.Rest({
@@ -367,8 +367,8 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
       return res.json({ success: true, enabled: false, message: 'Widget removed successfully!' });
     }
   } catch (error: any) {
-    console.error('Error toggling widget:', error.response?.body || error.message);
-    res.status(500).json({ error: 'Failed to toggle widget' });
+    console.error('Error toggling widget:', error?.response?.body || error.message);
+    res.status(500).json({ error: 'Failed to toggle widget', details: error?.response?.body || error.message });
   }
 });
 
