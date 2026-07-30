@@ -19,7 +19,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       where: { store_url: shop },
     });
 
-    const isShopifyConnected = shopifyIntegration?.access_token && shopifyIntegration.access_token !== "pending";
+    const isShopifyConnected = shopifyIntegration && (
+      shopifyIntegration.status === 'connected' ||
+      (shopifyIntegration.access_token && shopifyIntegration.access_token !== 'pending')
+    );
 
     return {
       shop,
