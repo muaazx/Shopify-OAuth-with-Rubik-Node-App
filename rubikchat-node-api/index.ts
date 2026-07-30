@@ -20,11 +20,13 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 
+const SCOPES = process.env.SHOPIFY_SCOPES ? process.env.SHOPIFY_SCOPES.split(',') : ['read_products', 'write_products', 'write_script_tags', 'read_script_tags', 'read_orders'];
+
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY || 'fake_key',
   apiSecretKey: process.env.SHOPIFY_API_SECRET || 'fake_secret',
   apiVersion: ApiVersion.July26,
-  scopes: ['read_products', 'write_products', 'write_script_tags', 'read_script_tags', 'read_orders'], // Set required scopes
+  scopes: SCOPES, // Set required scopes
   isEmbeddedApp: false,
   hostName: process.env.HOST?.replace(/https:\/\//, '') || 'localhost:3001', // Update based on ngrok or railway domain
 });
@@ -50,8 +52,8 @@ app.get(['/api/auth/shopify', '/api/shopify/auth'], async (req, res) => {
   }
 });
 
-// GET /api/auth/shopify/callback
-app.get('/api/auth/shopify/callback', async (req, res) => {
+// GET /api/auth/shopify/callback & /api/shopify/callback
+app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res) => {
   try {
     const callbackResponse = await shopify.auth.callback({
       rawRequest: req,
@@ -59,6 +61,7 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
     });
 
     const session = callbackResponse.session;
+    console.log("✅ Successfully received fresh access token:", session?.accessToken ? "TOKEN_VALID" : "NO_TOKEN");
 
     // Generate state_token
     const crypto = require('crypto');
