@@ -237,8 +237,13 @@ export default function Index() {
             <p style={{ color: "#6d7175", marginBottom: "24px", maxWidth: "400px", margin: "0 auto 24px" }}>
               To enable your AI agents, you need to connect your Shopify store to your RubikChat account.
             </p>
-            <button 
-              onClick={handleConnectClick}
+            <a
+              href={`https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
               style={{ 
                 backgroundColor: "#2c6ecb", 
                 color: "white", 
@@ -248,11 +253,13 @@ export default function Index() {
                 fontSize: "15px", 
                 fontWeight: "600", 
                 cursor: "pointer",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textDecoration: "none",
+                display: "inline-block"
               }}
             >
-              Connect with RubikChat
-            </button>
+              Connect with RubikChat ↗
+            </a>
           </div>
         )}
 
