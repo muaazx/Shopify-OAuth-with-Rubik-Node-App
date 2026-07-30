@@ -224,30 +224,19 @@ function ConnectPage() {
 
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = () => {
     if (!window.confirm('Are you sure you want to disconnect RubikChat from this shop? This will delete all integration configuration.')) {
       return;
     }
     
     setIsDisconnecting(true);
-    try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-      const res = await fetch(`${backendUrl}/api/shopify/disconnect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shop: connectedShop }),
-      });
-      
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setStatus('idle');
-      } else {
-        alert(data.error || 'Failed to disconnect');
-      }
-    } catch (err) {
-      alert('Network error while disconnecting');
-    } finally {
-      setIsDisconnecting(false);
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const disconnectUrl = `${backendUrl}/api/shopify/disconnect?shop=${encodeURIComponent(connectedShop)}`;
+
+    if (window.top) {
+      window.top.location.href = disconnectUrl;
+    } else {
+      window.location.href = disconnectUrl;
     }
   };
 
