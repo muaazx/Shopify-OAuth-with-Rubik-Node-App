@@ -378,10 +378,11 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
 // Public endpoint for the storefront JS widget to check status
 app.get('/api/widget/status', async (req: express.Request, res: express.Response) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   const shop = req.query.shop as string;
 
   if (!shop) {
-    return res.status(400).json({ error: 'Missing shop parameter' });
+    return res.status(400).json({ enabled: false, error: 'Missing shop parameter' });
   }
 
   const integration = await prisma.shopify_integrations.findFirst({
