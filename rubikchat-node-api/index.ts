@@ -114,9 +114,9 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
       console.error('Failed to fetch shop details (non-fatal):', graphQlError);
     }
 
-    // Redirect to frontend UI with token
+    // Redirect to frontend onboarding UI with shop and state_token
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/functions?shop=${session.shop}&token=${stateToken}`);
+    res.redirect(`${frontendUrl}/onboarding?shop=${session.shop}&state_token=${stateToken}`);
   } catch (error) {
     console.error('OAuth Callback Error:', error);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';

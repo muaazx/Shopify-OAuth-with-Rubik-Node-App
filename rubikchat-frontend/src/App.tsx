@@ -321,7 +321,16 @@ function ConnectPage() {
                 To enable your AI agents, you need to connect your Shopify store to your RubikChat account securely.
               </p>
               <button 
-                onClick={() => window.open(window.location.origin + '?shop=' + connectedShop, '_blank')}
+                onClick={() => {
+                  const urlParams = new URLSearchParams(window.location.search);
+                  const shop = urlParams.get("shop") || "rubikchat-test-store.myshopify.com";
+                  const backendOAuthUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/auth?shop=${encodeURIComponent(shop)}`;
+                  if (window.top) {
+                    window.top.location.href = backendOAuthUrl;
+                  } else {
+                    window.location.href = backendOAuthUrl;
+                  }
+                }}
                 className="inline-flex items-center space-x-2 bg-[#2c6ecb] hover:bg-[#1f5199] text-white font-medium px-6 py-2.5 rounded-md shadow-sm transition-colors"
               >
                 <span>Connect with RubikChat</span>
