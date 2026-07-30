@@ -18,7 +18,7 @@ function ConnectPage() {
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
   const initialShop = searchParams.get('shop');
-  const initialToken = searchParams.get('token');
+  const initialToken = searchParams.get('state_token') || searchParams.get('token');
 
   const verifySession = async (shop: string, token: string | null) => {
     if (!token) {
@@ -525,6 +525,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<ConnectPage />} />
+      <Route path="/onboarding" element={<ConnectPage />} />
       <Route path="/functions" element={<FunctionsPage />} />
     </Routes>
   );
