@@ -29,8 +29,8 @@ const shopify = shopifyApi({
   hostName: process.env.HOST?.replace(/https:\/\//, '') || 'localhost:3001', // Update based on ngrok or railway domain
 });
 
-// GET /api/auth/shopify
-app.get('/api/auth/shopify', async (req, res) => {
+// GET /api/auth/shopify & /api/shopify/auth
+app.get(['/api/auth/shopify', '/api/shopify/auth'], async (req, res) => {
   const shop = req.query.shop as string;
   if (!shop) {
     return res.status(400).send('Missing shop parameter. Please provide a Shopify store URL.');
