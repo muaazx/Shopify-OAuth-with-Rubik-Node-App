@@ -905,26 +905,8 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
       agentForm.append('organization_id', shopifyRecord.rubik_organization_id.toString());
     }
 
-    // Fetch products from Shopify
-    let productsMarkdown = '';
-    try {
-      const client = new shopify.clients.Rest({
-        session: {
-          shop: shopifyRecord.store_url,
-          accessToken: shopifyRecord.access_token,
-        } as any,
-      });
-
-      const productsResponse: any = await client.get({
-        path: 'products',
-        query: { limit: 250, status: 'active' }
-      });
-      const products = productsResponse.body.products || [];
-      productsMarkdown = convertProductsToMarkdown(products);
-    } catch (prodErr: any) {
-      console.error('Failed to fetch Shopify products for training (non-fatal):', prodErr.message || prodErr);
-      productsMarkdown = '\n\n## Product Catalog\nNo products found or failed to load product catalog.';
-    }
+    // Product catalog fetching removed (no Shopify REST API calls required)
+    const productsMarkdown = '';
 
     const storeContent = `${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing
 Automate customer service, capture more leads and boost sales with ${storeName} AI Agents. Provide instant support, reduce costs and grow your business.
