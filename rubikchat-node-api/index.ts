@@ -116,6 +116,40 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
     } catch (graphQlError) {
       console.error('Failed to fetch shop details (non-fatal):', graphQlError);
     }
+    try {
+      const restClient = new shopify.clients.Rest({
+        session: {
+          shop: session.shop,
+          accessToken: session.accessToken as string,
+        } as any,
+      });
+
+      const existingTags: any = await restClient.get({ path: 'script_tags' });
+      const scriptList = existingTags?.body?.script_tags || [];
+      const hasScript = scriptList.some((tag: any) =>
+        tag.src && tag.src.includes('widget.js')
+      );
+
+      if (!hasScript) {
+        const widgetJsUrl = 'https://shopify-o-auth-with-rubik-node-app.vercel.app/widget.js';
+
+        await restClient.post({
+          path: 'script_tags',
+          data: {
+            script_tag: {
+              event: 'onload',
+              src: widgetJsUrl,
+            },
+          },
+          type: DataType.JSON,
+        });
+        console.log(`✅ [ScriptTag] Successfully injected widget.js into ${session.shop}`);
+      } else {
+        console.log(`ℹ️ [ScriptTag] Widget script tag already present on ${session.shop}`);
+      }
+    } catch (scriptError: any) {
+      console.error('⚠️ [ScriptTag Injection Warning]:', scriptError?.response?.body || scriptError?.message);
+    }
 
     // Redirect to frontend onboarding UI with shop and state_token
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
