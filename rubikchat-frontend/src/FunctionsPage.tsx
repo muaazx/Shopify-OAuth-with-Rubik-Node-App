@@ -120,18 +120,7 @@ export default function FunctionsPage() {
         } catch (e) {
           console.error(e);
         }
-        // Redirect top-level window back to Shopify Admin so App Bridge re-initializes cleanly
-        if (shop) {
-          const storeSlug = shop.replace('.myshopify.com', '');
-          const shopifyAdminUrl = `https://admin.shopify.com/store/${storeSlug}/apps/rubikchat-agent-app-1/app`;
-          setTimeout(() => {
-            if (window.top) {
-              window.top.location.href = shopifyAdminUrl;
-            } else {
-              window.location.href = shopifyAdminUrl;
-            }
-          }, 1500); // Brief delay so user sees "Agent Created" success state first
-        }
+
       } else {
         alert(data.error || 'Failed to create agent');
       }
