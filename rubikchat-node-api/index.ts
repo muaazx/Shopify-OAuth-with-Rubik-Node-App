@@ -62,7 +62,7 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
 
     const session = callbackResponse.session;
     const { shop, accessToken } = session;
-    console.log(`🔑 Access Token Received for ${shop}:`, accessToken ? `${accessToken.substring(0, 10)}...` : "NONE");
+    console.log(`🔑 NEW OFFLINE TOKEN FOR ${shop}:`, accessToken);
 
     // Generate state_token
     const crypto = require('crypto');
