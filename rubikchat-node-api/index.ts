@@ -395,6 +395,39 @@ app.get('/api/widget/status', async (req: express.Request, res: express.Response
   });
 });
 
+// Route to clean up old script tags on test store
+app.get('/api/shopify/clean-script-tags', async (req: express.Request, res: express.Response) => {
+  try {
+    const shop = (req.query.shop as string) || 'rubikchat-test-store.myshopify.com';
+    
+    const integration = await prisma.shopify_integrations.findFirst({
+      where: { store_url: shop },
+    });
+
+    if (!integration?.access_token) {
+      return res.status(400).send('No access token found for shop');
+    }
+
+    const client = new shopify.clients.Rest({
+      session: { shop, accessToken: integration.access_token } as any,
+    });
+
+    // Fetch all script tags currently registered on Shopify
+    const tagsRes: any = await client.get({ path: 'script_tags' });
+    const scriptTags = tagsRes?.body?.script_tags || [];
+
+    // Delete existing widget script tags
+    for (const tag of scriptTags) {
+      await client.delete({ path: `script_tags/${tag.id}` });
+      console.log(`Deleted old ScriptTag ID: ${tag.id}`);
+    }
+
+    return res.json({ success: true, deletedCount: scriptTags.length });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ALL /api/shopify/disconnect
 app.all('/api/shopify/disconnect', async (req: express.Request, res: express.Response) => {
   const shop = (req.query.shop || req.body?.shop) as string;
