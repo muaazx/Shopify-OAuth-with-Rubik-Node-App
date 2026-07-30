@@ -161,7 +161,21 @@ export default function Index() {
 
   const handleConnectClick = () => {
     const authUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
-    window.open(authUrl, "_blank");
+
+    // 1. Try App Bridge open (breaks out of embedded iframe smoothly)
+    if ((window as any).shopify && typeof (window as any).shopify.open === "function") {
+      (window as any).shopify.open(authUrl, "_blank");
+      return;
+    }
+
+    // 2. Fallback: Force anchor tag with target="_blank"
+    const a = document.createElement("a");
+    a.href = authUrl;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   return (
