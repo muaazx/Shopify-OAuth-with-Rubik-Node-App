@@ -162,7 +162,7 @@ function ConnectPage() {
     }
     
     setStatus('setting_up_rubikchat');
-    setLoadingMessage('Registering your email...');
+    setLoadingMessage('Registering account...');
     
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -182,8 +182,8 @@ function ConnectPage() {
       }
 
       // Step 2: Show success and start login
-      setLoadingMessage('Email registered! Logging in to your account...');
-      await new Promise(resolve => setTimeout(resolve, 800)); // Brief pause so they see the success stage
+      setLoadingMessage('Logging in to your account...');
+      await new Promise(resolve => setTimeout(resolve, 800)); // Brief pause so they see the registration step
 
       // Step 3: Login
       const loginRes = await fetch(`${backendUrl}/api/rubikchat/login`, {
@@ -209,6 +209,7 @@ function ConnectPage() {
       } else {
         localStorage.setItem('rubik_auth_token', 'authenticated');
       }
+      await new Promise(resolve => setTimeout(resolve, 600)); // Brief pause so user sees "Logging in..." state
       setStatus('complete');
     } catch (err) {
       setStatus('error');
