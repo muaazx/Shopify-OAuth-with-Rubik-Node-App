@@ -80,6 +80,13 @@ export default function FunctionsPage() {
         body: JSON.stringify({ shop, enabled: targetState }),
       });
       
+      if (res.status === 401) {
+        alert('Session expired. Re-authenticating with Shopify...');
+        const authUrl = `${backendUrl}/api/shopify/auth?shop=${encodeURIComponent(shop)}`;
+        window.open(authUrl, '_top');
+        return;
+      }
+      
       const data = await res.json();
       if (res.ok && data.success) {
         setEmbedSuccess(data.enabled);
