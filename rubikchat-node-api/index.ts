@@ -59,7 +59,7 @@ app.get('/api/auth/shopify/callback', async (req, res) => {
     });
 
     const session = callbackResponse.session;
-    
+
     // Generate state_token
     const crypto = require('crypto');
     const stateToken = crypto.randomBytes(32).toString('hex');
