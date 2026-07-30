@@ -315,11 +315,7 @@ function ConnectPage() {
                   const urlParams = new URLSearchParams(window.location.search);
                   const shop = urlParams.get("shop") || "rubikchat-test-store.myshopify.com";
                   const backendOAuthUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/auth?shop=${encodeURIComponent(shop)}`;
-                  if (window.top) {
-                    window.top.location.href = backendOAuthUrl;
-                  } else {
-                    window.location.href = backendOAuthUrl;
-                  }
+                  window.open(backendOAuthUrl, '_top');
                 }}
                 className="inline-flex items-center space-x-2 bg-[#2c6ecb] hover:bg-[#1f5199] text-white font-medium px-6 py-2.5 rounded-md shadow-sm transition-colors"
               >
