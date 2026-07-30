@@ -312,67 +312,52 @@ app.get('/widget.js', async (req, res) => {
   `);
 });
 
-// Embed/Remove Widget via ScriptTag
+// Pure Database Toggle for Widget Preference (No Shopify REST API calls)
 app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.Response) => {
   const { shop, enabled } = req.body;
   if (!shop) {
     return res.status(400).json({ error: 'Missing shop parameter' });
   }
 
-  const shouldEmbed = enabled !== false; // default to true if not specified
+  const isEnabled = enabled !== false;
 
   try {
-    const integrationRecord = await prisma.shopify_integrations.findUnique({
+    // Update internal widget status in Supabase (No Shopify API call required!)
+    await prisma.shopify_integrations.upsert({
       where: { store_url: shop },
+      update: {
+        status: isEnabled ? 'widget_enabled' : 'connected',
+      },
+      create: {
+        store_url: shop,
+        status: isEnabled ? 'widget_enabled' : 'connected',
+      },
     });
 
-    if (!integrationRecord || !integrationRecord.access_token || integrationRecord.access_token === 'pending') {
-      return res.status(401).json({ error: 'Store requires re-authentication to grant widget permissions.' });
-    }
-
-    const client = new shopify.clients.Rest({
-      session: {
-        shop: integrationRecord.store_url,
-        accessToken: integrationRecord.access_token,
-      } as any,
-    });
-
-    // Check if script tag already exists
-    const existingTags: any = await client.get({ path: 'script_tags' });
-    const targetSrc = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js';
-
-    const matchingTags = (existingTags?.body?.script_tags || []).filter((tag: any) => tag.src === targetSrc);
-
-    if (shouldEmbed) {
-      if (matchingTags.length === 0) {
-        await client.post({
-          path: 'script_tags',
-          data: {
-            script_tag: {
-              event: 'onload',
-              src: targetSrc,
-            },
-          },
-          type: DataType.JSON,
-        });
-      }
-      return res.json({ success: true, enabled: true, message: 'Widget embedded successfully!' });
-    } else {
-      if (matchingTags.length > 0) {
-        for (const tag of matchingTags) {
-          if (tag.id) {
-            await client.delete({
-              path: `script_tags/${tag.id}`,
-            });
-          }
-        }
-      }
-      return res.json({ success: true, enabled: false, message: 'Widget removed successfully!' });
-    }
+    return res.json({ success: true, enabled: isEnabled });
   } catch (error: any) {
-    console.error('Error toggling widget:', error?.response?.body || error.message);
-    res.status(500).json({ error: 'Failed to toggle widget', details: error?.response?.body || error.message });
+    console.error('Error toggling widget state:', error.message);
+    return res.status(500).json({ error: 'Failed to update widget preference' });
   }
+});
+
+// Public endpoint for the storefront JS widget to check status
+app.get('/api/widget/status', async (req: express.Request, res: express.Response) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  const shop = req.query.shop as string;
+
+  if (!shop) {
+    return res.status(400).json({ error: 'Missing shop parameter' });
+  }
+
+  const integration = await prisma.shopify_integrations.findFirst({
+    where: { store_url: shop },
+  });
+
+  return res.json({
+    enabled: integration?.status === 'widget_enabled',
+    agentId: integration?.rubik_agent_id || null,
+  });
 });
 
 // ALL /api/shopify/disconnect
@@ -435,22 +420,7 @@ app.get('/api/status', async (req, res) => {
       where: { store_url: shop },
     });
 
-    let widgetEmbedded = false;
-    if (shopifyIntegration.access_token) {
-      try {
-        const client = new shopify.clients.Rest({
-          session: {
-            shop: shopifyIntegration.store_url,
-            accessToken: shopifyIntegration.access_token,
-          } as any,
-        });
-        const existingTags: any = await client.get({ path: 'script_tags' });
-        const targetSrc = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js';
-        widgetEmbedded = existingTags?.body?.script_tags?.some((tag: any) => tag.src === targetSrc) || false;
-      } catch (err) {
-        console.warn('ScriptTag check skipped - access token needs refresh:', (err as any)?.message || err);
-      }
-    }
+    const widgetEmbedded = shopifyIntegration.status === 'widget_enabled';
 
     return res.json({
       shopifyConnected: true,
