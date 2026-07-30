@@ -1,13 +1,18 @@
 (function () {
+  // 1. Resolve store domain
   const shop = window.Shopify ? window.Shopify.shop : location.hostname;
   const API_BASE = "https://shopify-oauth-with-rubik-node-app-production.up.railway.app";
   const FRONTEND_BASE = "https://shopify-o-auth-with-rubik-node-app.vercel.app";
 
-  async function checkAndRenderWidget() {
+  async function initRubikChat() {
     try {
+      // 2. Query Supabase status for this store
       const res = await fetch(`${API_BASE}/api/widget/status?shop=${encodeURIComponent(shop)}`);
+      if (!res.ok) return;
+
       const data = await res.json();
 
+      // 3. Render iframe if enabled in database
       if (data.enabled) {
         if (document.getElementById("rubikchat-widget-iframe")) return;
 
@@ -27,17 +32,19 @@
         `;
         document.body.appendChild(iframe);
       } else {
+        // Remove iframe if toggled OFF
         const existingIframe = document.getElementById("rubikchat-widget-iframe");
         if (existingIframe) existingIframe.remove();
       }
     } catch (err) {
-      console.error("RubikChat Widget Error:", err);
+      console.error("RubikChat Widget Initialization Error:", err);
     }
   }
 
-  if (document.readyState === "complete") {
-    checkAndRenderWidget();
+  // Execute on DOM load
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    initRubikChat();
   } else {
-    window.addEventListener("load", checkAndRenderWidget);
+    window.addEventListener("DOMContentLoaded", initRubikChat);
   }
 })();
