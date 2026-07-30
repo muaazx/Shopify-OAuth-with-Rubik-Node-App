@@ -64,7 +64,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     },
   });
 
-  const redirectUrl = `https://shopify-o-auth-with-rubik-node-app.vercel.app/functions?shop=${encodeURIComponent(shop)}&token=${stateToken}`;
+  const redirectUrl = `https://shopify-o-auth-with-rubik-node-app.vercel.app/onboarding?shop=${encodeURIComponent(shop)}&state_token=${stateToken}`;
   return { redirectUrl };
 };
 
