@@ -74,6 +74,9 @@ function ConnectPage() {
   }, [searchParams, isEmbedded, initialShop, initialToken]);
 
   const checkStatus = async (shop: string, embeddedMode: boolean) => {
+    // Prevent background status check from resetting active setup / onboarding flow
+    if (status === 'setting_up_rubikchat' || status === 'connecting_shopify') return;
+
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
       const res = await fetch(`${backendUrl}/api/status?shop=${shop}`);
@@ -89,13 +92,15 @@ function ConnectPage() {
         setStatus('idle');
       }
     } catch (err) {
-      setStatus('error');
-      setErrorMessage('Failed to verify connection status.');
+      if (status !== 'setting_up_rubikchat' && status !== 'connecting_shopify') {
+        setStatus('error');
+        setErrorMessage('Failed to verify connection status.');
+      }
     }
   };
 
   useEffect(() => {
-    if (status === 'complete' || !connectedShop) return;
+    if (status === 'complete' || status === 'setting_up_rubikchat' || status === 'connecting_shopify' || !connectedShop) return;
 
     const checkNow = () => {
       checkStatus(connectedShop, isEmbedded);
