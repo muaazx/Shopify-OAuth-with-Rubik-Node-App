@@ -441,7 +441,7 @@ app.get('/api/status', async (req, res) => {
         const targetSrc = 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js';
         widgetEmbedded = existingTags?.body?.script_tags?.some((tag: any) => tag.src === targetSrc) || false;
       } catch (err) {
-        console.error('Failed to fetch script tags for status (non-fatal):', err);
+        console.warn('ScriptTag check skipped - access token needs refresh:', (err as any)?.message || err);
       }
     }
 
