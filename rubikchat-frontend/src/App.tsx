@@ -15,6 +15,7 @@ function ConnectPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isHovered, setIsHovered] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
   const initialShop = searchParams.get('shop');
@@ -312,15 +313,26 @@ function ConnectPage() {
               </p>
               <button 
                 onClick={() => {
+                  setIsRedirecting(true);
                   const urlParams = new URLSearchParams(window.location.search);
                   const shop = urlParams.get("shop") || "rubikchat-test-store.myshopify.com";
                   const backendOAuthUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/auth?shop=${encodeURIComponent(shop)}`;
                   window.open(backendOAuthUrl, '_top');
                 }}
-                className="inline-flex items-center space-x-2 bg-[#2c6ecb] hover:bg-[#1f5199] text-white font-medium px-6 py-2.5 rounded-md shadow-sm transition-colors"
+                disabled={isRedirecting}
+                className="inline-flex items-center space-x-2 bg-[#2c6ecb] hover:bg-[#1f5199] disabled:bg-[#85b1e8] text-white font-medium px-6 py-2.5 rounded-md shadow-sm transition-colors disabled:cursor-not-allowed"
               >
-                <span>Connect with RubikChat</span>
-                <ExternalLink className="w-4 h-4" />
+                {isRedirecting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Connecting to RubikChat...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Connect with RubikChat</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           )}
