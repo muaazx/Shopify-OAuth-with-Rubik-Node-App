@@ -160,7 +160,8 @@ export default function Index() {
   };
 
   const handleConnectClick = () => {
-    fetcher.submit({}, { method: "post" });
+    const authUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
+    window.open(authUrl, "_blank");
   };
 
   return (
