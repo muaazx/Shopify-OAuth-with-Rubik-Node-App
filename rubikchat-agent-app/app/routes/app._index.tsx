@@ -159,23 +159,25 @@ export default function Index() {
     }
   };
 
-  const handleConnectClick = () => {
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleConnectClick = (e: React.MouseEvent) => {
+    setIsConnecting(true);
     const authUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
 
-    // 1. Try App Bridge open (breaks out of embedded iframe smoothly)
     if ((window as any).shopify && typeof (window as any).shopify.open === "function") {
-      (window as any).shopify.open(authUrl, "_blank");
-      return;
+      try {
+        (window as any).shopify.open(authUrl, "_blank");
+      } catch (err) {
+        window.open(authUrl, "_blank", "noopener,noreferrer");
+      }
+    } else {
+      window.open(authUrl, "_blank", "noopener,noreferrer");
     }
 
-    // 2. Fallback: Force anchor tag with target="_blank"
-    const a = document.createElement("a");
-    a.href = authUrl;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    setTimeout(() => {
+      setIsConnecting(false);
+    }, 2000);
   };
 
   return (
@@ -241,9 +243,7 @@ export default function Index() {
               href={`https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
+              onClick={handleConnectClick}
               style={{ 
                 backgroundColor: "#2c6ecb", 
                 color: "white", 
@@ -252,13 +252,14 @@ export default function Index() {
                 borderRadius: "4px", 
                 fontSize: "15px", 
                 fontWeight: "600", 
-                cursor: "pointer",
+                cursor: isConnecting ? "not-allowed" : "pointer",
+                opacity: isConnecting ? 0.75 : 1,
                 boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                 textDecoration: "none",
                 display: "inline-block"
               }}
             >
-              Connect with RubikChat ↗
+              {isConnecting ? "↻ Connecting to RubikChat..." : "Connect with RubikChat ↗"}
             </a>
           </div>
         )}
