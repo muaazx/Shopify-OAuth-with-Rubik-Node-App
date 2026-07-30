@@ -424,7 +424,7 @@ app.all('/api/shopify/disconnect', async (req: express.Request, res: express.Res
       });
     }
 
-    if (req.method === 'GET' || req.query.shop) {
+    if (req.method === 'GET') {
       const storeName = shop ? shop.replace('.myshopify.com', '') : 'rubikchat-test-store';
       return res.redirect(`https://admin.shopify.com/store/${storeName}/apps/rubikchat-agent-app-1/app`);
     }
