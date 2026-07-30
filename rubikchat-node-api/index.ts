@@ -1051,6 +1051,7 @@ ${productsMarkdown}`;
         where: { store_url: shop },
         data: {
           rubik_agent_id: agentId.toString(),
+          status: 'connected',
         },
       });
 
