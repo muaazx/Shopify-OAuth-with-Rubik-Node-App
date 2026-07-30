@@ -5,6 +5,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import type { LoaderFunctionArgs, ActionFunctionArgs, HeadersFunction } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { useAppBridge } from "@shopify/app-bridge-react";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
