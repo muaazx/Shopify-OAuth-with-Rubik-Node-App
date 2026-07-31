@@ -1567,7 +1567,7 @@ app.get("/api/widget/status", async (req: express.Request, res: express.Response
     const shop = req.query.shop as string;
 
     if (!shop) {
-      return res.status(400).json({ enabled: false, error: "Shop parameter missing" });
+      return res.status(400).json({ enabled: false, error: "Shop missing" });
     }
 
     const store = await prisma.shopify_integrations.findUnique({
@@ -1578,9 +1578,13 @@ app.get("/api/widget/status", async (req: express.Request, res: express.Response
       return res.status(200).json({ enabled: false });
     }
 
+    // Check status and read the correct column name from Supabase
+    const isEnabled = store.status === "connected";
+    const agentId = store.rubik_agent_id || "W9fsfL9HlDBdg0GndHSafngb";
+
     return res.status(200).json({
-      enabled: store.status === "connected",
-      agentId: store.rubik_agent_id || "W9fsfL9HlDBdg0GndHSafngb",
+      enabled: isEnabled,
+      agentId: agentId,
     });
   } catch (error) {
     console.error("Widget status error:", error);
