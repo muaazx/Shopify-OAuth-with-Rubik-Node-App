@@ -1435,23 +1435,39 @@ function convertProductsToMarkdown(products: any[]): string {
 // POST /api/shopify/disconnect
 app.post("/api/shopify/disconnect", async (req: express.Request, res: express.Response) => {
   try {
-    const { shop } = req.body;
+    const shop = req.body?.shop as string;
 
     if (!shop) {
-      return res.status(400).json({ error: "Shop missing" });
+      return res.status(400).json({ error: "Shop parameter missing" });
     }
 
-    // Update DB status to disconnected
-    await prisma.shopify_integrations.update({
+    // 1. Check if store exists in database
+    const existingStore = await prisma.shopify_integrations.findUnique({
       where: { store_url: shop },
-      data: { status: "disconnected", access_token: "" },
     });
 
-    // 🚀 Return JSON success so the embedded frontend handles the state transition smoothly
-    return res.status(200).json({ success: true, message: "Disconnected successfully" });
+    if (existingStore) {
+      // 2. Update store record to disconnected state
+      await prisma.shopify_integrations.update({
+        where: { store_url: shop },
+        data: {
+          status: "disconnected",
+          access_token: "",
+        },
+      });
+      console.log(`🔌 [Database] Store disconnected successfully: ${shop}`);
+    } else {
+      console.log(`⚠️ [Database] Disconnect requested for untracked store: ${shop}`);
+    }
+
+    // 3. Return JSON 200 OK success
+    return res.status(200).json({
+      success: true,
+      message: "Disconnected successfully",
+    });
   } catch (error) {
-    console.error("Disconnect error:", error);
-    return res.status(500).json({ error: "Failed to disconnect" });
+    console.error("❌ Disconnect Error:", error);
+    return res.status(500).json({ error: "Failed to disconnect store" });
   }
 });
 
