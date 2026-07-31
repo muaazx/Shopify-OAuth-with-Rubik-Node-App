@@ -1660,6 +1660,11 @@ app.post("/api/shopify/onboard", async (req: express.Request, res: express.Respo
       return res.status(400).json({ error: "Shop and email parameters are required" });
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Please enter a valid email address (e.g., name@company.com)." });
+    }
+
     // Save/update user email in organization & integrations
     const updatedStore = await prisma.shopify_integrations.upsert({
       where: { store_url: shop },
