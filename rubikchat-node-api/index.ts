@@ -1489,8 +1489,8 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
       return res.status(400).json({ error: "Store access token not found" });
     }
 
-    // Point this to your hosted widget JS script URL on Vercel or CDN
-    const scriptSrc = "https://shopify-o-auth-with-rubik-node-app.vercel.app/widget.js";
+    // Point this to your hosted widget JS script URL on Railway or Vercel
+    const scriptSrc = "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/widget.js";
 
     if (enabled) {
       // 2. ENABLE: Check if script tag already exists to prevent duplicate injections
@@ -1502,7 +1502,7 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
       );
       const existingData = (await existingScriptsRes.json()) as any;
       const alreadyExists = existingData.script_tags?.some(
-        (st: any) => st.src === scriptSrc
+        (st: any) => st.src === scriptSrc || st.src === "https://shopify-o-auth-with-rubik-node-app.vercel.app/widget.js"
       );
 
       if (!alreadyExists) {
@@ -1521,8 +1521,12 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
           }),
         });
 
-        const createData = await createRes.json();
-        console.log(`✅ [ScriptTag] Injected for ${shop}:`, createData);
+        const data = (await createRes.json()) as any;
+        console.log("🔍 [SHOPIFY SCRIPTTAG RESPONSE]:", JSON.stringify(data, null, 2));
+
+        if (data.errors) {
+          return res.status(400).json({ error: "Shopify rejected ScriptTag", details: data.errors });
+        }
       }
     } else {
       // 3. DISABLE: Delete existing script tags for this widget
@@ -1535,7 +1539,7 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
       const existingData = (await existingScriptsRes.json()) as any;
       
       const tagsToDelete = existingData.script_tags?.filter(
-        (st: any) => st.src === scriptSrc
+        (st: any) => st.src === scriptSrc || st.src === "https://shopify-o-auth-with-rubik-node-app.vercel.app/widget.js"
       );
 
       for (const tag of tagsToDelete || []) {
