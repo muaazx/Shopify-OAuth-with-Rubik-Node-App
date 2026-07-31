@@ -1457,7 +1457,7 @@ app.post("/api/shopify/disconnect", async (req: express.Request, res: express.Re
     // Update DB status to disconnected
     await prisma.shopify_integrations.update({
       where: { store_url: shop },
-      data: { status: "disconnected", access_token: null },
+      data: { status: "disconnected", access_token: "" },
     });
 
     // 🚀 Return JSON success so the embedded frontend handles the state transition smoothly
