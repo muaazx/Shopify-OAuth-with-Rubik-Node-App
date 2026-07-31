@@ -947,9 +947,9 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
     // Product catalog fetching removed (no Shopify REST API calls required)
     const productsMarkdown = '';
 
-    const storeContent = `${storeName} | Autonomous AI Agents for Customer Support, Sales and Marketing
-Automate customer service, capture more leads and boost sales with ${storeName} AI Agents. Provide instant support, reduce costs and grow your business.
-Boost sales by 20x and cut support costs. Connect your knowledge base and let ${storeName} handle your entire customer journey automatically.
+    const storeContent = `${formattedShopName} | Autonomous AI Agents for Customer Support, Sales and Marketing
+Automate customer service, capture more leads and boost sales with ${formattedShopName} AI Agents. Provide instant support, reduce costs and grow your business.
+Boost sales by 20x and cut support costs. Connect your knowledge base and let ${formattedShopName} handle your entire customer journey automatically.
 Deploy autonomous AI agents that qualify leads, close sales, and provide 24/7 support across WhatsApp, Web, and Social Media. Stop chatting, start converting.
 
 Solutions
@@ -958,7 +958,7 @@ Resources
 Pricing
 
 The World’s Most Powerful AI Agents for Customer Service.
-Scale your business, convert more leads, cut support costs, and boost customer loyalty with ${storeName}’s autonomous AI Agents built for powerful, human-like customer service.
+Scale your business, convert more leads, cut support costs, and boost customer loyalty with ${formattedShopName}’s autonomous AI Agents built for powerful, human-like customer service.
 
 Generate Leads
 5× More Leads — Automatically
@@ -972,9 +972,9 @@ Your AI Sales Agents handle objections, recommend products, and move prospects t
 Instant Answers. Real Conversations. Zero Wait.
 Provide around-the-clock support with AI Agents that understand context, resolve issues, and offer human-level service—without human costs.
 
-Try ${storeName} Free
-Set Up Your Business with ${storeName}'s AI Chatbot Solutions
-${storeName} offers advanced AI chatbot solutions that transform how you interact with your customers and streamline your business processes.
+Try ${formattedShopName} Free
+Set Up Your Business with ${formattedShopName}'s AI Chatbot Solutions
+${formattedShopName} offers advanced AI chatbot solutions that transform how you interact with your customers and streamline your business processes.
 
 Efficient Automation
 Automate tasks and interactions to enhance productivity and user engagement.
@@ -995,18 +995,18 @@ Built-in Omnichannel
 From DMs to live chat, engage customers consistently across every touchpoint with one integrated solution.
 
 Built-in MCP
-Scope AI actions with precision — whether it’s sending updates, scheduling meetings, or managing integrations — all within ${storeName}.
+Scope AI actions with precision — whether it’s sending updates, scheduling meetings, or managing integrations — all within ${formattedShopName}.
 
-How ${storeName} Works
-Improve Productivity with ${storeName}'s
-${storeName}'s uses advanced AI technology to automate and streamline your business interactions. Here’s how it typically works:
+How ${formattedShopName} Works
+Improve Productivity with ${formattedShopName}'s
+${formattedShopName}'s uses advanced AI technology to automate and streamline your business interactions. Here’s how it typically works:
 
 01 -Train Your Agents
 Upload and organize your knowledge sources — from files and plain text to website URLs or Notion pages. Our platform lets your AI agents learn directly from your business content, so they can accurately answer questions, follow your brand voice, and deliver reliable responses every time.
 02 -Connect Your Channels
 03 -Set Up Your Workflows
 
-See ${storeName} AI Agents in Action
+See ${formattedShopName} AI Agents in Action
 Real businesses using autonomous AI Agents to convert leads, boost sales, and automate support.
 
 Talk to Experts
@@ -1016,11 +1016,11 @@ Our experts will help you design the perfect omnichannel strategy for your busin
 Provide instant, accurate assistance to your users, reducing response times and enhancing satisfaction.
 
 Contact
-${storeName}, LLC
+${formattedShopName}, LLC
 1111B S Governors Ave STE 25390
 Dover, DE 19904
 Email: support@rubikchat.com
-© 2026 ${storeName}. All rights reserved.
+© 2026 ${formattedShopName}. All rights reserved.
 
 ${productsMarkdown}`;
 
@@ -1071,7 +1071,7 @@ ${productsMarkdown}`;
     agentForm.append('color', '#4f46e5');
     agentForm.append('header_color', '');
     agentForm.append('newFilesData', '[]');
-    agentForm.append('botName', `${storeName} Assistant`);
+    agentForm.append('botName', `${formattedShopName} Assistant`);
     agentForm.append('businessType', '{"label":"Other","value":"Other","type":"other"}');
 
     await prisma.api_logs.create({
