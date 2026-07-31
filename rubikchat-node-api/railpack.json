@@ -1,0 +1,15 @@
+{
+  "packages": {
+    "nodejs": "22"
+  },
+  "build": {
+    "steps": [
+      "npm install",
+      "npx prisma generate",
+      "npx tsc"
+    ]
+  },
+  "deploy": {
+    "start": "npx prisma migrate deploy && node dist/index.js"
+  }
+}
