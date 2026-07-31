@@ -355,7 +355,7 @@ app.post('/api/shopify/embed-widget', async (req: express.Request, res: express.
 });
 
 // Public endpoint for the storefront JS widget to check status
-app.get('/api/widget/status', async (req: express.Request, res: express.Response) => {
+app.get(['/api/widget/status', '/api/shopify/agent-status'], async (req: express.Request, res: express.Response) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   const shop = req.query.shop as string;
@@ -364,14 +364,34 @@ app.get('/api/widget/status', async (req: express.Request, res: express.Response
     return res.status(400).json({ enabled: false, error: 'Missing shop parameter' });
   }
 
-  const integration = await prisma.shopify_integrations.findFirst({
-    where: { store_url: shop },
-  });
+  try {
+    const integration = await prisma.shopify_integrations.findFirst({
+      where: { store_url: shop },
+    });
 
-  return res.json({
-    enabled: integration?.status === 'widget_enabled',
-    agentId: integration?.rubik_agent_id || null,
-  });
+    const agentId = integration?.rubik_agent_id || null;
+
+    // Auto-enable: if store exists and has an agent, widget is always enabled
+    const isEnabled = Boolean(integration && agentId);
+
+    // Auto-heal: if agent exists but status isn't widget_enabled, fix it
+    if (isEnabled && integration && integration.status !== 'widget_enabled') {
+      await prisma.shopify_integrations.updateMany({
+        where: { store_url: shop },
+        data: { status: 'widget_enabled' },
+      }).catch(() => {});
+    }
+
+    return res.json({
+      enabled: isEnabled,
+      hasAgent: Boolean(agentId),
+      agentId: agentId,
+      widgetEnabled: isEnabled,
+    });
+  } catch (error) {
+    console.error('Widget status error:', error);
+    return res.status(200).json({ enabled: false });
+  }
 });
 
 // Route to clean up old script tags on test store
@@ -1057,7 +1077,7 @@ ${productsMarkdown}`;
         where: { store_url: shop },
         data: {
           rubik_agent_id: agentId.toString(),
-          status: 'connected',
+          status: 'widget_enabled',
         },
       });
 
@@ -1561,45 +1581,7 @@ app.post(["/api/shopify/toggle-widget", "/api/shopify/embed-widget"], async (req
   }
 });
 
-// GET /api/widget/status & /api/shopify/agent-status
-app.get(["/api/widget/status", "/api/shopify/agent-status"], async (req: express.Request, res: express.Response) => {
-  try {
-    const shop = req.query.shop as string;
-
-    if (!shop) {
-      return res.status(400).json({ enabled: false, error: "Shop parameter missing" });
-    }
-
-    const store = await prisma.shopify_integrations.findUnique({
-      where: { store_url: shop },
-    });
-
-    const agentId = store?.rubik_agent_id || "P17bjjiu7VSdlsDZOI1dmFiN";
-
-    // Auto-heal status in database if store exists and currently marked disconnected
-    if (store && store.status === "disconnected") {
-      await prisma.shopify_integrations.update({
-        where: { store_url: shop },
-        data: { status: "connected" },
-      }).catch(() => {});
-    }
-
-    return res.status(200).json({
-      enabled: true,
-      hasAgent: true,
-      agentId: agentId,
-      widgetEnabled: true,
-    });
-  } catch (error) {
-    console.error("Widget status error:", error);
-    return res.status(200).json({
-      enabled: true,
-      hasAgent: true,
-      agentId: "P17bjjiu7VSdlsDZOI1dmFiN",
-      widgetEnabled: true,
-    });
-  }
-});
+// (Duplicate handler removed — /api/widget/status and /api/shopify/agent-status are handled at line ~358)
 
 // GET /widget.js - Serve floating AI widget script
 app.get("/widget.js", (req: express.Request, res: express.Response) => {
