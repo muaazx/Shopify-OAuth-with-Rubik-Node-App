@@ -226,7 +226,14 @@ function ConnectPage() {
       await new Promise(resolve => setTimeout(resolve, remaining));
 
       isSettingUpRef.current = false;
-      setStatus('complete');
+
+      // Auto-redirect to dashboard URL if provided by login response,
+      // otherwise fall back to updating local state to 'complete'.
+      if (loginData.redirectUrl) {
+        window.location.href = loginData.redirectUrl;
+      } else {
+        setStatus('complete');
+      }
     } catch (err) {
       isSettingUpRef.current = false;
       setStatus('error');
