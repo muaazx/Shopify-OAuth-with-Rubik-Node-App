@@ -35,20 +35,22 @@ const shopify = shopifyApi({
 app.get(['/api/auth/shopify', '/api/shopify/auth'], async (req, res) => {
   const shop = req.query.shop as string;
   if (!shop) {
-    return res.status(400).send('Missing shop parameter. Please provide a Shopify store URL.');
+    return res.status(400).json({ error: 'Shop parameter is required' });
   }
 
   try {
-    await shopify.auth.begin({
+    const authUrl = await shopify.auth.begin({
       shop: shopify.utils.sanitizeShop(shop, true) || shop,
       callbackPath: '/api/auth/shopify/callback',
       isOnline: false,
       rawRequest: req,
       rawResponse: res,
     });
+
+    return res.json({ authUrl });
   } catch (error) {
     console.error('Error starting OAuth:', error);
-    res.status(500).send('Failed to begin OAuth');
+    return res.status(500).json({ error: 'Failed to initiate OAuth' });
   }
 });
 
