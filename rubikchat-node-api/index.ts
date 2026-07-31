@@ -1471,8 +1471,8 @@ app.post("/api/shopify/disconnect", async (req: express.Request, res: express.Re
   }
 });
 
-// POST /api/shopify/toggle-widget
-app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express.Response) => {
+// POST /api/shopify/toggle-widget & /api/shopify/embed-widget
+app.post(["/api/shopify/toggle-widget", "/api/shopify/embed-widget"], async (req: express.Request, res: express.Response) => {
   try {
     const { shop, enabled } = req.body;
 
