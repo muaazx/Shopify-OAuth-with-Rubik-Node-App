@@ -1557,39 +1557,96 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
   }
 });
 
+// GET /api/widget/status - Fetch widget status and agentId for a store
+app.get("/api/widget/status", async (req: express.Request, res: express.Response) => {
+  try {
+    const shop = req.query.shop as string;
+
+    if (!shop) {
+      return res.status(400).json({ error: "Shop parameter missing" });
+    }
+
+    const store = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!store) {
+      return res.json({ enabled: false });
+    }
+
+    return res.json({
+      enabled: store.status === "connected",
+      agentId: store.rubik_agent_id || "",
+    });
+  } catch (error) {
+    console.error("Error fetching widget status:", error);
+    return res.status(500).json({ error: "Failed to fetch widget status" });
+  }
+});
+
 // GET /widget.js - Serve floating AI widget script
 app.get("/widget.js", (req: express.Request, res: express.Response) => {
   res.setHeader("Content-Type", "application/javascript");
   res.send(`
 (function () {
-  console.log("🤖 RubikChat AI Widget Initialized");
-  if (document.getElementById("rubikchat-widget-root")) return;
+  // 1. Resolve store domain safely
+  let shop = "";
+  if (window.Shopify && window.Shopify.shop) {
+    shop = window.Shopify.shop;
+  } else {
+    shop = window.location.hostname;
+  }
 
-  const widgetContainer = document.createElement("div");
-  widgetContainer.id = "rubikchat-widget-root";
-  widgetContainer.style.position = "fixed";
-  widgetContainer.style.bottom = "20px";
-  widgetContainer.style.right = "20px";
-  widgetContainer.style.zIndex = "999999";
+  // Fallback for local testing or custom domain mappings
+  if (!shop || shop.includes("localhost")) {
+    shop = "rubikchat-test-store.myshopify.com";
+  }
 
-  const button = document.createElement("button");
-  button.innerText = "💬 Chat with AI";
-  button.style.backgroundColor = "#4f46e5";
-  button.style.color = "#ffffff";
-  button.style.border = "none";
-  button.style.borderRadius = "25px";
-  button.style.padding = "12px 20px";
-  button.style.fontSize = "14px";
-  button.style.fontWeight = "bold";
-  button.style.cursor = "pointer";
-  button.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+  const API_BASE = "https://shopify-oauth-with-rubik-node-app-production.up.railway.app";
+  const FRONTEND_BASE = "https://shopify-o-auth-with-rubik-node-app.vercel.app";
 
-  button.onclick = function () {
-    alert("RubikChat AI Assistant connected!");
-  };
+  async function initRubikChat() {
+    try {
+      // 2. Query status
+      const res = await fetch(\`\${API_BASE}/api/widget/status?shop=\${encodeURIComponent(shop)}\`);
+      if (!res.ok) return;
 
-  widgetContainer.appendChild(button);
-  document.body.appendChild(widgetContainer);
+      const data = await res.json();
+
+      // 3. Render iframe if enabled
+      if (data.enabled) {
+        if (document.getElementById("rubikchat-widget-iframe")) return;
+
+        const iframe = document.createElement("iframe");
+        iframe.id = "rubikchat-widget-iframe";
+        iframe.src = \`\${FRONTEND_BASE}/chat-embed?shop=\${encodeURIComponent(shop)}&agentId=\${encodeURIComponent(data.agentId || "")}\`;
+        
+        iframe.style.cssText = \`
+          position: fixed !important;
+          bottom: 20px !important;
+          right: 20px !important;
+          width: 380px !important;
+          height: 600px !important;
+          border: none !important;
+          z-index: 2147483647 !important;
+          border-radius: 16px !important;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2) !important;
+          color-scheme: light !important;
+        \`;
+
+        document.body.appendChild(iframe);
+        console.log("🤖 RubikChat Widget iframe injected successfully!");
+      }
+    } catch (err) {
+      console.error("RubikChat Widget error:", err);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initRubikChat);
+  } else {
+    initRubikChat();
+  }
 })();
   `);
 });
