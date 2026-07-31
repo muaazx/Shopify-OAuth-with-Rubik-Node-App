@@ -73,8 +73,8 @@ export default function FunctionsPage() {
     setIsEmbedding(true);
     
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-      const res = await fetch(`${backendUrl}/api/shopify/embed-widget`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://shopify-oauth-with-rubik-node-app-production.up.railway.app';
+      const res = await fetch(`${backendUrl}/api/shopify/toggle-widget`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shop, enabled: targetState }),
