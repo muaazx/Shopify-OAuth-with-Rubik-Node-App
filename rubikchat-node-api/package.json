@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
-    "build": "npx prisma generate && npx prisma migrate deploy && npx tsc",
-    "start": "npm run build && node dist/index.js",
+    "build": "npx prisma generate && npx tsc",
+    "start": "npx prisma migrate deploy && node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
