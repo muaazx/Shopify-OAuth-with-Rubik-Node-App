@@ -47,7 +47,7 @@ app.get(['/api/auth/shopify', '/api/shopify/auth'], async (req, res) => {
       rawResponse: res,
     });
 
-    return res.json({ authUrl });
+    return res.redirect(authUrl);
   } catch (error) {
     console.error('Error starting OAuth:', error);
     return res.status(500).json({ error: 'Failed to initiate OAuth' });
