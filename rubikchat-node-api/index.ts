@@ -122,9 +122,32 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
       console.error('Failed to fetch shop details (non-fatal):', graphQlError);
     }
 
-    // Redirect to frontend onboarding UI with shop and state_token
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/onboarding?shop=${session.shop}&state_token=${stateToken}`);
+    // ⚡ URLs needed for redirection
+    const vercelOnboardingUrl = `https://shopify-o-auth-with-rubik-node-app.vercel.app/functions?shop=${encodeURIComponent(shop)}&state_token=${stateToken}`;
+    const shopifyAdminAppUrl = `https://admin.shopify.com/store/${shop.replace(".myshopify.com", "")}/apps/rubikchat-agent-app-1`;
+
+    // 🚀 RETURN HTML JS SCRIPT INSTEAD OF DIRECT res.redirect()
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Connecting RubikChat...</title>
+        </head>
+        <body style="font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f6f6f7;">
+          <div style="text-align: center;">
+            <h2>Shopify Connected Successfully!</h2>
+            <p>Launching RubikChat Agent Setup in a new window...</p>
+          </div>
+          <script>
+            // 1. Launch your Vercel React setup app in a BRAND NEW TAB
+            window.open("${vercelOnboardingUrl}", "_blank");
+
+            // 2. Return the top frame back to Shopify Admin immediately
+            window.location.href = "${shopifyAdminAppUrl}";
+          </script>
+        </body>
+      </html>
+    `);
   } catch (error) {
     console.error('OAuth Callback Error:', error);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
