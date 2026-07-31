@@ -1578,14 +1578,14 @@ app.get(["/api/widget/status", "/api/shopify/agent-status"], async (req: express
       return res.status(200).json({ enabled: false, reason: "Store not found" });
     }
 
-    const agentId = store.rubik_agent_id || "4QrbcZhbD4kiXAyzMObxs3dC";
-    const hasAgent = Boolean(store && (store.rubik_agent_id || store.rubik_user_id));
+    const agentId = store.rubik_agent_id || "P17bjjiu7VSdlsDZOI1dmFiN";
+    const isEnabled = store.status !== "disconnected" && Boolean(agentId);
 
     return res.status(200).json({
-      enabled: true,
-      hasAgent,
+      enabled: isEnabled,
+      hasAgent: Boolean(agentId),
       agentId: agentId,
-      widgetEnabled: store.status === "connected",
+      widgetEnabled: isEnabled,
     });
   } catch (error) {
     console.error("Widget status error:", error);
