@@ -19,7 +19,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-shop'],
   credentials: true,
 }));
-app.options('*', cors());
+app.options(/(.*)/, cors());
 
 app.use(cookieParser());
 app.use(express.json());
