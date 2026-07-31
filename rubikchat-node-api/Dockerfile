@@ -1,24 +1,19 @@
-# Use official Node.js runtime as a parent image
 FROM node:22-alpine
 
-# Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy dependency manifests
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
 
-# Copy the rest of your application code
+# Copy application source code
 COPY . .
 
-# Generate Prisma Client and Build TypeScript
+# Generate Prisma Client & Compile TS (Build Time - No DB connection needed)
 RUN npx prisma generate
-RUN npm run build
+RUN npx tsc
 
-# Expose the port your app runs on (Railway injects PORT automatically, but 8080 is a good default)
 EXPOSE 8080
 
-# Start the application
-CMD ["npm", "start"]
+# Run migrations and start API server at runtime
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
