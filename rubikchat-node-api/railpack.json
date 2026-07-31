@@ -10,6 +10,6 @@
     ]
   },
   "deploy": {
-    "start": "npx prisma migrate deploy && node dist/index.js"
+    "start": "npx tsc && npx prisma migrate deploy && node dist/index.js"
   }
 }
