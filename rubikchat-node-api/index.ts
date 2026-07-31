@@ -1575,11 +1575,11 @@ app.get("/api/widget/status", async (req: express.Request, res: express.Response
     });
 
     if (!store) {
-      return res.status(200).json({ enabled: false });
+      return res.status(200).json({ enabled: false, reason: "Store not found in DB" });
     }
 
-    // Check status and read the correct column name from Supabase
-    const isEnabled = store.status === "connected";
+    // Always enable if store exists and status isn't explicitly 'disconnected'
+    const isEnabled = store.status !== "disconnected";
     const agentId = store.rubik_agent_id || "W9fsfL9HlDBdg0GndHSafngb";
 
     return res.status(200).json({
