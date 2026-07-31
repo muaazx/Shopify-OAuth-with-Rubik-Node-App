@@ -154,6 +154,7 @@ export default function Index() {
     try {
       const res = await fetch(`https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/disconnect`, {
         method: "POST",
+        mode: "cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shop }),
       });
