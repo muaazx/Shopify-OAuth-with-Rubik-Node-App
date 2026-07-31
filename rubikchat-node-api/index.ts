@@ -1557,13 +1557,13 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
   }
 });
 
-// GET /api/widget/status - Fetch widget status and agentId for a store
+// GET /api/widget/status
 app.get("/api/widget/status", async (req: express.Request, res: express.Response) => {
   try {
     const shop = req.query.shop as string;
 
     if (!shop) {
-      return res.status(400).json({ error: "Shop parameter missing" });
+      return res.status(400).json({ enabled: false, error: "Shop parameter missing" });
     }
 
     const store = await prisma.shopify_integrations.findUnique({
@@ -1571,16 +1571,16 @@ app.get("/api/widget/status", async (req: express.Request, res: express.Response
     });
 
     if (!store) {
-      return res.json({ enabled: false });
+      return res.status(200).json({ enabled: false });
     }
 
-    return res.json({
+    return res.status(200).json({
       enabled: store.status === "connected",
-      agentId: store.rubik_agent_id || "",
+      agentId: store.rubik_agent_id || "W9fsfL9HlDBdg0GndHSafngb",
     });
   } catch (error) {
-    console.error("Error fetching widget status:", error);
-    return res.status(500).json({ error: "Failed to fetch widget status" });
+    console.error("Widget status error:", error);
+    return res.status(500).json({ enabled: false });
   }
 });
 
@@ -1589,7 +1589,7 @@ app.get("/widget.js", (req: express.Request, res: express.Response) => {
   res.setHeader("Content-Type", "application/javascript");
   res.send(`
 (function () {
-  // 1. Resolve store domain safely
+  // 1. Determine current store domain
   let shop = "";
   if (window.Shopify && window.Shopify.shop) {
     shop = window.Shopify.shop;
@@ -1597,45 +1597,38 @@ app.get("/widget.js", (req: express.Request, res: express.Response) => {
     shop = window.location.hostname;
   }
 
-  // Fallback for local testing or custom domain mappings
-  if (!shop || shop.includes("localhost")) {
-    shop = "rubikchat-test-store.myshopify.com";
-  }
-
   const API_BASE = "https://shopify-oauth-with-rubik-node-app-production.up.railway.app";
-  const FRONTEND_BASE = "https://shopify-o-auth-with-rubik-node-app.vercel.app";
 
-  async function initRubikChat() {
+  async function initRubikChatWidget() {
     try {
-      // 2. Query status
+      // 2. Fetch agent status & chatbotId from your backend
       const res = await fetch(\`\${API_BASE}/api/widget/status?shop=\${encodeURIComponent(shop)}\`);
       if (!res.ok) return;
 
       const data = await res.json();
 
-      // 3. Render iframe if enabled
-      if (data.enabled) {
-        if (document.getElementById("rubikchat-widget-iframe")) return;
-
-        const iframe = document.createElement("iframe");
-        iframe.id = "rubikchat-widget-iframe";
-        iframe.src = \`\${FRONTEND_BASE}/chat-embed?shop=\${encodeURIComponent(shop)}&agentId=\${encodeURIComponent(data.agentId || "")}\`;
+      // 3. If widget is enabled and a chatbotId exists, inject the RubikChat scripts
+      if (data.enabled && data.agentId) {
         
-        iframe.style.cssText = \`
-          position: fixed !important;
-          bottom: 20px !important;
-          right: 20px !important;
-          width: 380px !important;
-          height: 600px !important;
-          border: none !important;
-          z-index: 2147483647 !important;
-          border-radius: 16px !important;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2) !important;
-          color-scheme: light !important;
-        \`;
+        // Prevent duplicate script injection
+        if (document.getElementById("rubikchat-core-script")) return;
 
-        document.body.appendChild(iframe);
-        console.log("🤖 RubikChat Widget iframe injected successfully!");
+        // Step A: Inject window.embeddedChatbotConfig
+        window.embeddedChatbotConfig = {
+          chatbotId: data.agentId,
+          domain: "widget.rubikchat.com"
+        };
+
+        // Step B: Dynamically create and append the RubikChat script tag
+        const script = document.createElement("script");
+        script.id = "rubikchat-core-script";
+        script.src = "https://api-proxy-v1.rubikchat.com/widget.js";
+        script.setAttribute("chatbotId", data.agentId);
+        script.setAttribute("domain", "widget.rubikchat.com");
+        script.defer = true;
+
+        document.head.appendChild(script);
+        console.log("🤖 RubikChat widget script injected for chatbotId:", data.agentId);
       }
     } catch (err) {
       console.error("RubikChat Widget error:", err);
@@ -1643,9 +1636,9 @@ app.get("/widget.js", (req: express.Request, res: express.Response) => {
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initRubikChat);
+    document.addEventListener("DOMContentLoaded", initRubikChatWidget);
   } else {
-    initRubikChat();
+    initRubikChatWidget();
   }
 })();
   `);
