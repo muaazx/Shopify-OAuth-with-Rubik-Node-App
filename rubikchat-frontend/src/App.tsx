@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Routes, Route, useNavigate } from 'react-router-dom';
 import { Store, CheckCircle, XCircle, Sparkles, ArrowRight, Mail, Loader2, ExternalLink } from 'lucide-react';
 import FunctionsPage from './FunctionsPage';
@@ -16,6 +16,7 @@ function ConnectPage() {
   const [isHovered, setIsHovered] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const isSettingUpRef = useRef(false);
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
   const initialShop = searchParams.get('shop');
@@ -75,7 +76,7 @@ function ConnectPage() {
 
   const checkStatus = async (shop: string, embeddedMode: boolean) => {
     // Prevent background status check from resetting active setup / onboarding flow
-    if (status === 'setting_up_rubikchat' || status === 'connecting_shopify') return;
+    if (isSettingUpRef.current) return;
 
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -92,7 +93,7 @@ function ConnectPage() {
         setStatus('idle');
       }
     } catch (err) {
-      if (status !== 'setting_up_rubikchat' && status !== 'connecting_shopify') {
+      if (!isSettingUpRef.current) {
         setStatus('error');
         setErrorMessage('Failed to verify connection status.');
       }
@@ -169,6 +170,7 @@ function ConnectPage() {
     
     setStatus('setting_up_rubikchat');
     setLoadingMessage('Registering account...');
+    isSettingUpRef.current = true;
     
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -182,14 +184,15 @@ function ConnectPage() {
       
       const registerData = await registerRes.json();
       if (!registerRes.ok || !registerData.success) {
+        isSettingUpRef.current = false;
         setStatus('error');
         setErrorMessage(registerData.error || 'Failed to register with RubikChat');
         return;
       }
 
-      // Step 2: Show success and start login
+      // Step 2: Show "Logging in..." loader for at least 1.5 seconds
       setLoadingMessage('Logging in to your account...');
-      await new Promise(resolve => setTimeout(resolve, 800)); // Brief pause so they see the registration step
+      const loginLoaderStart = Date.now();
 
       // Step 3: Login
       const loginRes = await fetch(`${backendUrl}/api/rubikchat/login`, {
@@ -204,6 +207,7 @@ function ConnectPage() {
 
       const loginData = await loginRes.json();
       if (!loginRes.ok || !loginData.success) {
+        isSettingUpRef.current = false;
         setStatus('error');
         setErrorMessage(loginData.error || 'Failed to log in to RubikChat');
         return;
@@ -215,9 +219,16 @@ function ConnectPage() {
       } else {
         localStorage.setItem('rubik_auth_token', 'authenticated');
       }
-      await new Promise(resolve => setTimeout(resolve, 600)); // Brief pause so user sees "Logging in..." state
+
+      // Enforce minimum 1.5s visible "Logging in..." loader
+      const elapsed = Date.now() - loginLoaderStart;
+      const remaining = Math.max(1500 - elapsed, 0);
+      await new Promise(resolve => setTimeout(resolve, remaining));
+
+      isSettingUpRef.current = false;
       setStatus('complete');
     } catch (err) {
+      isSettingUpRef.current = false;
       setStatus('error');
       setErrorMessage('Network error while setting up RubikChat');
     }
