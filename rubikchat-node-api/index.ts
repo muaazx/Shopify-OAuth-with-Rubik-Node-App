@@ -1506,8 +1506,7 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
       );
 
       if (!alreadyExists) {
-        // Inject ScriptTag into storefront dynamically
-        await fetch(`https://${shop}/admin/api/2026-04/script_tags.json`, {
+        const createRes = await fetch(`https://${shop}/admin/api/2026-04/script_tags.json`, {
           method: "POST",
           headers: {
             "X-Shopify-Access-Token": store.access_token,
@@ -1521,7 +1520,9 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
             },
           }),
         });
-        console.log(`✅ [ScriptTag] Widget script injected for ${shop}`);
+
+        const createData = await createRes.json();
+        console.log(`✅ [ScriptTag] Injected for ${shop}:`, createData);
       }
     } else {
       // 3. DISABLE: Delete existing script tags for this widget
