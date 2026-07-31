@@ -1691,6 +1691,33 @@ app.post("/api/shopify/onboard", async (req: express.Request, res: express.Respo
   }
 });
 
+// GET /api/shopify/agent-status
+app.get("/api/shopify/agent-status", async (req: express.Request, res: express.Response) => {
+  try {
+    const shop = req.query.shop as string;
+
+    if (!shop) {
+      return res.status(400).json({ error: "Shop parameter missing" });
+    }
+
+    const store = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    // Check if store exists and has an agent ID assigned
+    const hasAgent = Boolean(store && (store.rubik_agent_id || store.rubik_user_id));
+
+    return res.status(200).json({
+      hasAgent,
+      agentId: store?.rubik_agent_id || null,
+      widgetEnabled: store?.status === "connected",
+    });
+  } catch (error) {
+    console.error("Error fetching agent status:", error);
+    return res.status(500).json({ error: "Failed to fetch agent status" });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`RubikChat Phase 3 Node API is running on port ${PORT}`);
