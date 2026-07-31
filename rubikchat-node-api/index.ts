@@ -1471,6 +1471,91 @@ app.post("/api/shopify/disconnect", async (req: express.Request, res: express.Re
   }
 });
 
+// POST /api/shopify/toggle-widget
+app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express.Response) => {
+  try {
+    const { shop, enabled } = req.body;
+
+    if (!shop) {
+      return res.status(400).json({ error: "Shop parameter missing" });
+    }
+
+    // 1. Fetch store access token from Supabase DB
+    const store = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!store || !store.access_token) {
+      return res.status(400).json({ error: "Store access token not found" });
+    }
+
+    // Point this to your hosted widget JS script URL on Vercel or CDN
+    const scriptSrc = "https://shopify-o-auth-with-rubik-node-app.vercel.app/widget.js";
+
+    if (enabled) {
+      // 2. ENABLE: Check if script tag already exists to prevent duplicate injections
+      const existingScriptsRes = await fetch(
+        `https://${shop}/admin/api/2026-04/script_tags.json`,
+        {
+          headers: { "X-Shopify-Access-Token": store.access_token },
+        }
+      );
+      const existingData = (await existingScriptsRes.json()) as any;
+      const alreadyExists = existingData.script_tags?.some(
+        (st: any) => st.src === scriptSrc
+      );
+
+      if (!alreadyExists) {
+        // Inject ScriptTag into storefront dynamically
+        await fetch(`https://${shop}/admin/api/2026-04/script_tags.json`, {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": store.access_token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            script_tag: {
+              event: "onload",
+              src: scriptSrc,
+              display_scope: "online_store",
+            },
+          }),
+        });
+        console.log(`✅ [ScriptTag] Widget script injected for ${shop}`);
+      }
+    } else {
+      // 3. DISABLE: Delete existing script tags for this widget
+      const existingScriptsRes = await fetch(
+        `https://${shop}/admin/api/2026-04/script_tags.json`,
+        {
+          headers: { "X-Shopify-Access-Token": store.access_token },
+        }
+      );
+      const existingData = (await existingScriptsRes.json()) as any;
+      
+      const tagsToDelete = existingData.script_tags?.filter(
+        (st: any) => st.src === scriptSrc
+      );
+
+      for (const tag of tagsToDelete || []) {
+        await fetch(
+          `https://${shop}/admin/api/2026-04/script_tags/${tag.id}.json`,
+          {
+            method: "DELETE",
+            headers: { "X-Shopify-Access-Token": store.access_token },
+          }
+        );
+      }
+      console.log(`🗑️ [ScriptTag] Widget script removed for ${shop}`);
+    }
+
+    return res.status(200).json({ success: true, enabled });
+  } catch (error) {
+    console.error("Widget toggle error:", error);
+    return res.status(500).json({ error: "Failed to update widget status" });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`RubikChat Phase 3 Node API is running on port ${PORT}`);
