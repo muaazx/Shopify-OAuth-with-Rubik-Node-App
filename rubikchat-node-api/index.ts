@@ -1561,8 +1561,8 @@ app.post(["/api/shopify/toggle-widget", "/api/shopify/embed-widget"], async (req
   }
 });
 
-// GET /api/widget/status
-app.get("/api/widget/status", async (req: express.Request, res: express.Response) => {
+// GET /api/widget/status & /api/shopify/agent-status
+app.get(["/api/widget/status", "/api/shopify/agent-status"], async (req: express.Request, res: express.Response) => {
   try {
     const shop = req.query.shop as string;
 
@@ -1578,15 +1578,14 @@ app.get("/api/widget/status", async (req: express.Request, res: express.Response
       return res.status(200).json({ enabled: false, reason: "Store not found" });
     }
 
-    // Read the populated rubik_agent_id column from Supabase
     const agentId = store.rubik_agent_id || "4QrbcZhbD4kiXAyzMObxs3dC";
-
-    // Force enabled to true if store exists and agentId is valid
-    const isEnabled = Boolean(store && agentId);
+    const hasAgent = Boolean(store && (store.rubik_agent_id || store.rubik_user_id));
 
     return res.status(200).json({
-      enabled: isEnabled,
+      enabled: true,
+      hasAgent,
       agentId: agentId,
+      widgetEnabled: store.status === "connected",
     });
   } catch (error) {
     console.error("Widget status error:", error);
@@ -1694,32 +1693,6 @@ app.post("/api/shopify/onboard", async (req: express.Request, res: express.Respo
   }
 });
 
-// GET /api/shopify/agent-status
-app.get("/api/shopify/agent-status", async (req: express.Request, res: express.Response) => {
-  try {
-    const shop = req.query.shop as string;
-
-    if (!shop) {
-      return res.status(400).json({ error: "Shop parameter missing" });
-    }
-
-    const store = await prisma.shopify_integrations.findUnique({
-      where: { store_url: shop },
-    });
-
-    // Check if store exists and has an agent ID assigned
-    const hasAgent = Boolean(store && (store.rubik_agent_id || store.rubik_user_id));
-
-    return res.status(200).json({
-      hasAgent,
-      agentId: store?.rubik_agent_id || null,
-      widgetEnabled: store?.status === "connected",
-    });
-  } catch (error) {
-    console.error("Error fetching agent status:", error);
-    return res.status(500).json({ error: "Failed to fetch agent status" });
-  }
-});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
