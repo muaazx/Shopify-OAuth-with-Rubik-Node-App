@@ -1445,6 +1445,29 @@ function convertProductsToMarkdown(products: any[]): string {
   return table;
 }
 
+// POST /api/shopify/disconnect
+app.post("/api/shopify/disconnect", async (req: express.Request, res: express.Response) => {
+  try {
+    const { shop } = req.body;
+
+    if (!shop) {
+      return res.status(400).json({ error: "Shop missing" });
+    }
+
+    // Update DB status to disconnected
+    await prisma.shopify_integrations.update({
+      where: { store_url: shop },
+      data: { status: "disconnected", access_token: null },
+    });
+
+    // 🚀 Return JSON success so the embedded frontend handles the state transition smoothly
+    return res.status(200).json({ success: true, message: "Disconnected successfully" });
+  } catch (error) {
+    console.error("Disconnect error:", error);
+    return res.status(500).json({ error: "Failed to disconnect" });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`RubikChat Phase 3 Node API is running on port ${PORT}`);
