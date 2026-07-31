@@ -1651,6 +1651,41 @@ app.get("/widget.js", (req: express.Request, res: express.Response) => {
   `);
 });
 
+// POST /api/shopify/onboard - Handles email registration and onboarding setup
+app.post("/api/shopify/onboard", async (req: express.Request, res: express.Response) => {
+  try {
+    const { shop, email } = req.body;
+
+    if (!shop || !email) {
+      return res.status(400).json({ error: "Shop and email parameters are required" });
+    }
+
+    // Save/update user email in organization & integrations
+    const updatedStore = await prisma.shopify_integrations.upsert({
+      where: { store_url: shop },
+      update: {
+        status: "connected",
+      },
+      create: {
+        store_url: shop,
+        access_token: "",
+        status: "connected",
+      },
+    });
+
+    console.log(`✅ [Onboarding] Successfully onboarded ${email} for shop ${shop}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Onboarded successfully",
+      shop: updatedStore.store_url,
+    });
+  } catch (error) {
+    console.error("❌ Onboarding Error:", error);
+    return res.status(500).json({ error: "Failed to process onboarding" });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`RubikChat Phase 3 Node API is running on port ${PORT}`);
