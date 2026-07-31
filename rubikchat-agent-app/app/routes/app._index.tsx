@@ -172,35 +172,19 @@ export default function Index() {
 
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const handleConnectClick = async (e: React.MouseEvent) => {
+  const handleConnectClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsConnecting(true);
 
-    // 1. ⚡ SYNCHRONOUSLY OPEN BLANK TAB IMMEDIATELY ON CLICK
-    // This bypasses Chrome's popup blocker because it's triggered directly by user gesture!
-    const newTab = window.open("about:blank", "_blank");
+    // ⚡ Direct backend URL that triggers shopify.auth.begin()
+    const directAuthUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
 
-    try {
-      // 2. Fetch the authUrl from Railway
-      const res = await fetch(
-        `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`
-      );
-      const data = await res.json();
+    // 🚀 Open the auth flow in a brand new browser tab immediately on click
+    window.open(directAuthUrl, "_blank", "noopener,noreferrer");
 
-      if (data.authUrl && newTab) {
-        // 3. Redirect the pre-opened tab to your OAuth / onboarding URL
-        newTab.location.href = data.authUrl;
-      } else if (newTab) {
-        newTab.close(); // Close tab if server error occurs
-      }
-    } catch (err) {
-      console.error("Failed to fetch authUrl:", err);
-      if (newTab) newTab.close();
-    } finally {
-      setTimeout(() => {
-        setIsConnecting(false);
-      }, 2000);
-    }
+    setTimeout(() => {
+      setIsConnecting(false);
+    }, 3000);
   };
 
   return (
