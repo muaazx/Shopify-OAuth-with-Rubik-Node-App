@@ -1581,8 +1581,8 @@ app.get("/api/widget/status", async (req: express.Request, res: express.Response
     // Read the populated rubik_agent_id column from Supabase
     const agentId = store.rubik_agent_id || "4QrbcZhbD4kiXAyzMObxs3dC";
 
-    // Enable the widget if status is not 'disconnected' and we have an agentId
-    const isEnabled = store.status !== "disconnected" && Boolean(agentId);
+    // Force enabled to true if store exists and agentId is valid
+    const isEnabled = Boolean(store && agentId);
 
     return res.status(200).json({
       enabled: isEnabled,
