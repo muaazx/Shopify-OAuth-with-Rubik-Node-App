@@ -1567,7 +1567,7 @@ app.get("/api/widget/status", async (req: express.Request, res: express.Response
     const shop = req.query.shop as string;
 
     if (!shop) {
-      return res.status(400).json({ enabled: false, error: "Shop missing" });
+      return res.status(400).json({ enabled: false, error: "Shop parameter missing" });
     }
 
     const store = await prisma.shopify_integrations.findUnique({
@@ -1575,12 +1575,14 @@ app.get("/api/widget/status", async (req: express.Request, res: express.Response
     });
 
     if (!store) {
-      return res.status(200).json({ enabled: false, reason: "Store not found in DB" });
+      return res.status(200).json({ enabled: false, reason: "Store not found" });
     }
 
-    // Always enable if store exists and status isn't explicitly 'disconnected'
-    const isEnabled = store.status !== "disconnected";
-    const agentId = store.rubik_agent_id || "W9fsfL9HlDBdg0GndHSafngb";
+    // Read the populated rubik_agent_id column from Supabase
+    const agentId = store.rubik_agent_id || "4QrbcZhbD4kiXAyzMObxs3dC";
+
+    // Enable the widget if status is not 'disconnected' and we have an agentId
+    const isEnabled = store.status !== "disconnected" && Boolean(agentId);
 
     return res.status(200).json({
       enabled: isEnabled,
