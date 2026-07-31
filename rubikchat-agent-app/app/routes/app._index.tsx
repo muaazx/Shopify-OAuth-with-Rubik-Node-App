@@ -170,22 +170,6 @@ export default function Index() {
     }
   };
 
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  const handleConnectClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsConnecting(true);
-
-    // ⚡ Direct backend URL that triggers shopify.auth.begin()
-    const directAuthUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
-
-    // 🚀 Open the auth flow in a brand new browser tab immediately on click
-    window.open(directAuthUrl, "_blank", "noopener,noreferrer");
-
-    setTimeout(() => {
-      setIsConnecting(false);
-    }, 3000);
-  };
 
   return (
     <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", padding: "2rem", maxWidth: "800px", margin: "0 auto" }}>
