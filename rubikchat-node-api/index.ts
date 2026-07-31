@@ -1557,6 +1557,43 @@ app.post("/api/shopify/toggle-widget", async (req: express.Request, res: express
   }
 });
 
+// GET /widget.js - Serve floating AI widget script
+app.get("/widget.js", (req: express.Request, res: express.Response) => {
+  res.setHeader("Content-Type", "application/javascript");
+  res.send(`
+(function () {
+  console.log("🤖 RubikChat AI Widget Initialized");
+  if (document.getElementById("rubikchat-widget-root")) return;
+
+  const widgetContainer = document.createElement("div");
+  widgetContainer.id = "rubikchat-widget-root";
+  widgetContainer.style.position = "fixed";
+  widgetContainer.style.bottom = "20px";
+  widgetContainer.style.right = "20px";
+  widgetContainer.style.zIndex = "999999";
+
+  const button = document.createElement("button");
+  button.innerText = "💬 Chat with AI";
+  button.style.backgroundColor = "#4f46e5";
+  button.style.color = "#ffffff";
+  button.style.border = "none";
+  button.style.borderRadius = "25px";
+  button.style.padding = "12px 20px";
+  button.style.fontSize = "14px";
+  button.style.fontWeight = "bold";
+  button.style.cursor = "pointer";
+  button.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+
+  button.onclick = function () {
+    alert("RubikChat AI Assistant connected!");
+  };
+
+  widgetContainer.appendChild(button);
+  document.body.appendChild(widgetContainer);
+})();
+  `);
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`RubikChat Phase 3 Node API is running on port ${PORT}`);
