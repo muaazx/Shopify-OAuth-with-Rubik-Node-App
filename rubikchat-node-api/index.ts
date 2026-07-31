@@ -47,10 +47,14 @@ app.get(['/api/auth/shopify', '/api/shopify/auth'], async (req, res) => {
       rawResponse: res,
     });
 
-    return res.redirect(authUrl);
+    if (!res.headersSent && authUrl) {
+      return res.redirect(authUrl);
+    }
   } catch (error) {
     console.error('Error starting OAuth:', error);
-    return res.status(500).json({ error: 'Failed to initiate OAuth' });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Failed to initiate OAuth' });
+    }
   }
 });
 
@@ -122,14 +126,15 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
       console.error('Failed to fetch shop details (non-fatal):', graphQlError);
     }
 
-    // 🚀 DIRECT 302 REDIRECT FOR THE NEW TAB DIRECTLY TO VERCEL!
-    return res.redirect(
-      `https://shopify-o-auth-with-rubik-node-app.vercel.app/functions?shop=${encodeURIComponent(shop)}&state_token=${stateToken}`
-    );
+    const onboardingUrl = `https://shopify-o-auth-with-rubik-node-app.vercel.app/onboarding?shop=${encodeURIComponent(shop)}&state_token=${stateToken}`;
+    if (!res.headersSent) {
+      return res.redirect(onboardingUrl);
+    }
   } catch (error) {
     console.error('OAuth Callback Error:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/functions?status=error&message=auth_failed`);
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'OAuth completion failed' });
+    }
   }
 });
 
