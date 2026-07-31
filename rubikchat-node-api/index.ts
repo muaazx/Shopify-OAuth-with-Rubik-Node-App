@@ -914,6 +914,13 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
 
     const storeName = shopifyRecord.store_name || shopifyRecord.store_url;
     organizationId = orgRecord.id;
+
+    // Extract clean shop name (e.g. "rubikchat-test-store" -> "Rubikchat Test Store")
+    const rawShopName = shopifyRecord.store_url || "your";
+    const formattedShopName = rawShopName
+      .replace(/\.myshopify\.com$/i, "")
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (char: string) => char.toUpperCase());
     const organizationIdentifier =
       shopifyRecord.rubik_organization_slug?.trim() ||
       shopifyRecord.rubik_organization_id?.toString() ||
@@ -1027,10 +1034,37 @@ ${productsMarkdown}`;
 
     agentForm.append('website', JSON.stringify(websiteData));
     agentForm.append('agentType', 'website');
-    agentForm.append('instructions', `You are the professional AI assistant for ${storeName}.`);
+    // Dynamic Instructions tailored for the specific Shopify store
+    const dynamicInstructions = `You are a professional customer support agent for ${formattedShopName} Shopify store.
+1. Role & Identity
+- You are the official AI assistant representing ${formattedShopName}.
+- You act as the primary digital contact for all user inquiries.
+- Your primary goal: provide accurate product information, answer store questions, and guide users to make purchases.
+2. Tone & Style
+- Professional, clear, and respectful at all times.
+- Use proper grammar and complete sentences.
+- Avoid slang or overly casual language.
+- Use bullet points or numbered steps when presenting multiple items or instructions.
+3. Grounding & Accuracy
+- You MUST ONLY answer factual questions based on the provided knowledge base and store details.
+- If a question cannot be answered from your knowledge base, politely say: "I don't have that information right now, but I'd be happy to assist you further if you leave your contact details."
+- Never guess or fabricate product details, prices, or store policies.
+- IMPORTANT: Short conversational replies like "ok", "yes", "sure", "great", "sounds good", "proceed", "go ahead" are NOT questions. They are confirmations. Always treat them as the user agreeing to continue — never respond with "I can't help with that".
+4. Conversation Best Practices
+- Always respond in the same language the user is writing in.
+- Use relevant emojis to keep interactions friendly and engaging.
+- After completing any inquiry, ask: "Is there anything else I can help you with today?"
+- Keep responses concise — avoid walls of text.`;
+
+    // Dynamic Initial Message
+    const dynamicInitialMessages = JSON.stringify([
+      `Welcome! 👋 I am your AI assistant for ${formattedShopName}. How can I help you today?`
+    ]);
+
+    agentForm.append('instructions', dynamicInstructions);
     agentForm.append('temperature', '0');
     agentForm.append('llm', 'gpt-4o-mini');
-    agentForm.append('initial_messages', '["Welcome! I\'m here to help you explore our website, services, and answers to your questions."]');
+    agentForm.append('initial_messages', dynamicInitialMessages);
     agentForm.append('suggested_messages', '[]');
     agentForm.append('theme', 'light');
     agentForm.append('is_streaming', '1');
