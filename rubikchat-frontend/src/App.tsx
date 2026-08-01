@@ -82,6 +82,10 @@ function ConnectPage() {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
       const res = await fetch(`${backendUrl}/api/status?shop=${shop}`);
       const data = await res.json();
+
+      // Re-check guard after async operation to prevent race condition
+      // where an in-flight status check resolves after setup has started
+      if (isSettingUpRef.current) return;
       
       if (data.shopifyConnected && data.rubikchatConnected) {
         setStatus('complete');
