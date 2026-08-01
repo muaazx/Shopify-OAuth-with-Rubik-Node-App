@@ -145,6 +145,13 @@ export default function Index() {
     };
   }, [isFullyConnected, revalidator]);
 
+  // Reset disconnecting state once revalidation completes and we're no longer connected
+  useEffect(() => {
+    if (isDisconnecting && !isFullyConnected) {
+      setIsDisconnecting(false);
+    }
+  }, [isDisconnecting, isFullyConnected]);
+
   const handleDisconnect = async () => {
     if (!window.confirm('Are you sure you want to disconnect RubikChat from this shop? This will delete all integration configuration.')) {
       return;
@@ -163,10 +170,10 @@ export default function Index() {
         revalidator.revalidate();
       } else {
         console.error("Failed to disconnect from backend");
+        setIsDisconnecting(false);
       }
     } catch (err) {
       console.error("Disconnect error:", err);
-    } finally {
       setIsDisconnecting(false);
     }
   };
@@ -186,7 +193,23 @@ export default function Index() {
           </p>
         </div>
 
-        {isFullyConnected ? (
+        {isDisconnecting ? (
+          <div style={{ textAlign: "center", padding: "3rem 2rem" }}>
+            <div style={{
+              width: "36px",
+              height: "36px",
+              border: "3px solid #e1e3e5",
+              borderTopColor: "#d93838",
+              borderRadius: "50%",
+              animation: "rubikchat-spin 0.8s linear infinite",
+              margin: "0 auto 1rem",
+            }} />
+            <p style={{ color: "#6d7175", fontSize: "15px", fontWeight: "500", margin: 0 }}>
+              Disconnecting your store...
+            </p>
+            <style>{`@keyframes rubikchat-spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : isFullyConnected ? (
           <div style={{ backgroundColor: "#e3f1df", border: "1px solid #aee9d1", borderRadius: "8px", padding: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
               <div style={{ backgroundColor: "#00a47c", color: "white", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>
@@ -203,7 +226,6 @@ export default function Index() {
             </div>
             <button
               onClick={handleDisconnect}
-              disabled={isDisconnecting}
               style={{
                 backgroundColor: "transparent",
                 color: "#d93838",
@@ -215,12 +237,11 @@ export default function Index() {
                 borderRadius: "4px",
                 transition: "all 0.2s",
                 marginLeft: "auto",
-                opacity: isDisconnecting ? 0.5 : 1,
               }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f7dcdb'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             >
-              {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+              Disconnect
             </button>
           </div>
         ) : (
