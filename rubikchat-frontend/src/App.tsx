@@ -217,7 +217,7 @@ function ConnectPage() {
         return;
       }
 
-      // Complete!
+      // Save token
       if (loginData.token) {
         localStorage.setItem('rubik_auth_token', loginData.token);
       } else {
@@ -229,15 +229,44 @@ function ConnectPage() {
       const remaining = Math.max(1500 - elapsed, 0);
       await new Promise(resolve => setTimeout(resolve, remaining));
 
+      // Step 4: Create AI Agent automatically
+      setLoadingMessage('Creating your AI agent...');
+      const createAgentLoaderStart = Date.now();
+
+      const agentRes = await fetch(`${backendUrl}/api/rubikchat/create-agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop: connectedShop }),
+      });
+
+      const agentData = await agentRes.json();
+      if (!agentRes.ok || !agentData.success) {
+        isSettingUpRef.current = false;
+        setStatus('error');
+        setErrorMessage(agentData.error || 'Failed to create AI agent');
+        return;
+      }
+
+      // Enforce minimum 1.5s visible "Creating your AI agent..." loader
+      const agentElapsed = Date.now() - createAgentLoaderStart;
+      const agentRemaining = Math.max(1500 - agentElapsed, 0);
+      await new Promise(resolve => setTimeout(resolve, agentRemaining));
+
       isSettingUpRef.current = false;
 
-      // Auto-redirect to dashboard URL if provided by login response,
-      // otherwise fall back to updating local state to 'complete'.
-      if (loginData.redirectUrl) {
-        window.location.href = loginData.redirectUrl;
-      } else {
-        setStatus('complete');
+      // Notify Shopify Admin iframe (if open) that setup is complete
+      if (window.opener) {
+        window.opener.postMessage({ type: 'RUBIKCHAT_CONNECTED' }, '*');
       }
+      try {
+        const channel = new BroadcastChannel('rubikchat_oauth_channel');
+        channel.postMessage({ type: 'RUBIKCHAT_CONNECTED' });
+        channel.close();
+      } catch (e) {
+        console.error(e);
+      }
+
+      setStatus('complete');
     } catch (err) {
       isSettingUpRef.current = false;
       setStatus('error');
@@ -397,8 +426,8 @@ function ConnectPage() {
                    <CheckCircle className="w-8 h-8 text-emerald-600" />
                  </div>
                  <div>
-                   <h3 className="text-emerald-900 font-bold text-lg">Setup Complete!</h3>
-                   <p className="text-emerald-700 text-sm mt-1">Your store is successfully connected.</p>
+                   <h3 className="text-emerald-900 font-bold text-lg">Agent Created Successfully!</h3>
+                   <p className="text-emerald-700 text-sm mt-1">Your AI agent is live and ready to assist your customers.</p>
                  </div>
               </div>
               <button
