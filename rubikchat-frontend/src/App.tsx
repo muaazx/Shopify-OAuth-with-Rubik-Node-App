@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Routes, Route, useNavigate } from 'react-router-dom';
-import { Store, CheckCircle, XCircle, X, Sparkles, ArrowRight, Mail, Loader2, ExternalLink, Info, Shield, Bot, Clock, RefreshCw, Settings } from 'lucide-react';
+import { Store, CheckCircle, XCircle, X, Sparkles, ArrowRight, Mail, Loader2, ExternalLink } from 'lucide-react';
 import FunctionsPage from './FunctionsPage';
 
 function ConnectPage() {
@@ -17,6 +17,7 @@ function ConnectPage() {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [showShopifyToast, setShowShopifyToast] = useState(false);
   const isSettingUpRef = useRef(false);
 
   const isEmbedded = searchParams.get('embedded') === '1' || window.self !== window.top;
@@ -74,6 +75,21 @@ function ConnectPage() {
 
     initFlow();
   }, [searchParams, isEmbedded, initialShop, initialToken]);
+
+  // Auto-dismiss the Shopify success toast after 3.5 seconds
+  useEffect(() => {
+    if (showShopifyToast) {
+      const timer = setTimeout(() => setShowShopifyToast(false), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [showShopifyToast]);
+
+  // Show the toast when status becomes shopify_success
+  useEffect(() => {
+    if (status === 'shopify_success') {
+      setShowShopifyToast(true);
+    }
+  }, [status]);
 
   const checkStatus = async (shop: string, embeddedMode: boolean) => {
     // Prevent background status check from resetting active setup / onboarding flow
@@ -405,6 +421,15 @@ function ConnectPage() {
   // ==========================================
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative font-sans">
+      {/* Floating success toast */}
+      {showShopifyToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-white border border-emerald-200 shadow-lg rounded-xl px-5 py-3 flex items-center space-x-3">
+            <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span className="text-slate-800 text-sm font-medium">Shopify Connected Successfully!</span>
+          </div>
+        </div>
+      )}
       <div className="relative z-10 max-w-md w-full">
         {/* Minimal White Card */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 space-y-8">
@@ -477,12 +502,7 @@ function ConnectPage() {
                 <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-400">
                   {/* Header */}
                   <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-blue-50 p-2 rounded-xl border border-blue-100">
-                        <Info className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <h2 className="text-xl font-bold text-slate-900">Before You Continue</h2>
-                    </div>
+                    <h2 className="text-lg font-semibold text-slate-900">Before You Continue</h2>
                     <button
                       onClick={() => setShowInstructions(false)}
                       className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-all"
@@ -492,78 +512,17 @@ function ConnectPage() {
                   </div>
 
                   {/* Instructions List */}
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-100 mt-0.5 flex-shrink-0">
-                        <Mail className="w-4 h-4 text-amber-600" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        Use an email address that you can access. It will be used for account notifications, password recovery, and future communication.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-purple-50 p-1.5 rounded-lg border border-purple-100 mt-0.5 flex-shrink-0">
-                        <Sparkles className="w-4 h-4 text-purple-600" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        A new RubikChat account will be created automatically using the email address you provide.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-emerald-50 p-1.5 rounded-lg border border-emerald-100 mt-0.5 flex-shrink-0">
-                        <Store className="w-4 h-4 text-emerald-600" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        Your Shopify store will be securely connected to your RubikChat workspace.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-blue-50 p-1.5 rounded-lg border border-blue-100 mt-0.5 flex-shrink-0">
-                        <Bot className="w-4 h-4 text-blue-600" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        An AI agent will be created and pre-configured specifically for your Shopify store.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-teal-50 p-1.5 rounded-lg border border-teal-100 mt-0.5 flex-shrink-0">
-                        <Shield className="w-4 h-4 text-teal-600" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        Your store information will be used only to configure your AI agent and integration.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-orange-50 p-1.5 rounded-lg border border-orange-100 mt-0.5 flex-shrink-0">
-                        <Clock className="w-4 h-4 text-orange-600" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        The initial setup may take 1–2 minutes. Please <strong>do not close, refresh, or navigate away</strong> from this page until the process is complete.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-indigo-50 p-1.5 rounded-lg border border-indigo-100 mt-0.5 flex-shrink-0">
-                        <RefreshCw className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        Once setup is complete, your screen will be refreshed automatically.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-rose-50 p-1.5 rounded-lg border border-rose-100 mt-0.5 flex-shrink-0">
-                        <Settings className="w-4 h-4 text-rose-600" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        You can customize your AI agent, knowledge base, appearance, and automation rules at any time after setup.
-                      </p>
-                    </div>
+                  <div className="p-6">
+                    <ol className="list-decimal list-outside pl-5 space-y-3 text-sm text-slate-600 leading-relaxed">
+                      <li>Use an email address that you can access. It will be used for account notifications, password recovery, and future communication.</li>
+                      <li>A new RubikChat account will be created automatically using the email address you provide.</li>
+                      <li>Your Shopify store will be securely connected to your RubikChat workspace.</li>
+                      <li>An AI agent will be created and pre-configured specifically for your Shopify store.</li>
+                      <li>Your store information will be used only to configure your AI agent and integration.</li>
+                      <li>The initial setup may take 1–2 minutes. Please <strong className="text-slate-800">do not close, refresh, or navigate away</strong> from this page until the process is complete.</li>
+                      <li>Once setup is complete, your screen will be refreshed automatically.</li>
+                      <li>You can customize your AI agent, knowledge base, appearance, and automation rules at any time after setup.</li>
+                    </ol>
                   </div>
 
                   {/* Footer */}
@@ -583,11 +542,6 @@ function ConnectPage() {
 
           {status === 'shopify_success' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center space-x-3 mb-2">
-                 <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                 <span className="text-emerald-800 text-sm font-medium">Shopify Connected Successfully!</span>
-              </div>
-              
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-sm font-medium text-slate-700 flex items-center space-x-2">
                   <Mail className="w-4 h-4 text-slate-400" />
