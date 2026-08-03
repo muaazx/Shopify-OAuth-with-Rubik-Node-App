@@ -267,6 +267,8 @@ function ConnectPage() {
       }
 
       setStatus('complete');
+      // Auto-redirect to functions page after successful agent creation
+      navigate('/functions?shop=' + encodeURIComponent(connectedShop) + '&agentCreated=1');
     } catch (err) {
       isSettingUpRef.current = false;
       setStatus('error');
