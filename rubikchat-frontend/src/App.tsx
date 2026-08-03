@@ -84,12 +84,12 @@ function ConnectPage() {
     }
   }, [showShopifyToast]);
 
-  // Show the toast when status becomes shopify_success
+  // Show the toast only after the instructions popup is dismissed
   useEffect(() => {
-    if (status === 'shopify_success') {
+    if (status === 'shopify_success' && !showInstructions) {
       setShowShopifyToast(true);
     }
-  }, [status]);
+  }, [showInstructions]);
 
   const checkStatus = async (shop: string, embeddedMode: boolean) => {
     // Prevent background status check from resetting active setup / onboarding flow
