@@ -1268,8 +1268,8 @@ app.get('/api/mcp/orders', async (req: express.Request, res: express.Response) =
 
     // 4. GraphQL Query
     const graphqlQuery = `
-      query getOrders($query: String!) {
-        orders(first: 5, query: $query) {
+      query getOrders($query: String) {
+        orders(first: 5, query: $query, sortKey: CREATED_AT, reverse: true) {
           edges {
             node {
               id
@@ -1283,10 +1283,13 @@ app.get('/api/mcp/orders', async (req: express.Request, res: express.Response) =
                   currencyCode
                 }
               }
-              customer {
-                firstName
-                lastName
-                email
+              fulfillments {
+                status
+                trackingInfo {
+                  company
+                  number
+                  url
+                }
               }
               lineItems(first: 10) {
                 edges {
@@ -1304,14 +1307,6 @@ app.get('/api/mcp/orders', async (req: express.Request, res: express.Response) =
                   }
                 }
               }
-              fulfillments {
-                status
-                trackingInfo {
-                  company
-                  number
-                  url
-                }
-              }
             }
           }
         }
@@ -1319,7 +1314,7 @@ app.get('/api/mcp/orders', async (req: express.Request, res: express.Response) =
     `;
 
     const response = await client.request(graphqlQuery, {
-      variables: { query: searchQuery.trim() },
+      variables: { query: searchQuery.trim() || undefined },
     });
 
     const orderEdges = (response.data as any)?.orders?.edges || [];
@@ -1340,24 +1335,19 @@ app.get('/api/mcp/orders', async (req: express.Request, res: express.Response) =
         created_at: order.createdAt,
         financial_status: order.displayFinancialStatus,
         fulfillment_status: order.displayFulfillmentStatus,
-        total_price: `${order.totalPriceSet?.shopMoney?.amount} ${order.totalPriceSet?.shopMoney?.currencyCode}`,
-        customer: {
-          first_name: order.customer?.firstName || "",
-          last_name: order.customer?.lastName || "",
-          email: order.customer?.email || "",
-        },
+        total_price: `${order.totalPriceSet?.shopMoney?.amount || 0} ${order.totalPriceSet?.shopMoney?.currencyCode || ''}`,
         items: (order.lineItems?.edges || []).map(({ node: item }: any) => ({
           title: item.title,
           variant_title: item.variantTitle || "Default",
           quantity: item.quantity,
-          price: `${item.originalUnitPriceSet?.shopMoney?.amount} ${item.originalUnitPriceSet?.shopMoney?.currencyCode}`,
+          price: `${item.originalUnitPriceSet?.shopMoney?.amount || 0} ${item.originalUnitPriceSet?.shopMoney?.currencyCode || ''}`,
           sku: item.sku || "",
         })),
         tracking: (order.fulfillments || []).map((f: any) => ({
           fulfillment_status: f.status,
-          tracking_company: f.trackingInfo[0]?.company || "N/A",
-          tracking_number: f.trackingInfo[0]?.number || "N/A",
-          tracking_url: f.trackingInfo[0]?.url || null,
+          tracking_company: f.trackingInfo?.[0]?.company || "N/A",
+          tracking_number: f.trackingInfo?.[0]?.number || "N/A",
+          tracking_url: f.trackingInfo?.[0]?.url || null,
         })),
       };
     });
@@ -1429,18 +1419,18 @@ app.all('/api/shopify/order-status', async (req: express.Request, res: express.R
     session.accessToken = integration.access_token;
     const client = new shopify.clients.Graphql({ session });
 
-    let searchQuery = '';
+    let queryFilter = '';
     if (orderName) {
       const cleanName = String(orderName).trim().replace('#', '');
-      searchQuery += `name:#${cleanName} `;
+      queryFilter += `name:#${cleanName} `;
     }
     if (email) {
-      searchQuery += `email:${String(email).trim()}`;
+      queryFilter += `email:${String(email).trim()}`;
     }
 
     const graphqlQuery = `
-      query getOrders($query: String!) {
-        orders(first: 10, query: $query) {
+      query getOrders($queryFilter: String) {
+        orders(first: 5, query: $queryFilter, sortKey: CREATED_AT, reverse: true) {
           edges {
             node {
               id
@@ -1454,33 +1444,20 @@ app.all('/api/shopify/order-status', async (req: express.Request, res: express.R
                   currencyCode
                 }
               }
-              customer {
-                firstName
-                lastName
-                email
-              }
-              lineItems(first: 10) {
-                edges {
-                  node {
-                    title
-                    variantTitle
-                    quantity
-                    originalUnitPriceSet {
-                      shopMoney {
-                        amount
-                        currencyCode
-                      }
-                    }
-                    sku
-                  }
-                }
-              }
               fulfillments {
                 status
                 trackingInfo {
                   company
                   number
                   url
+                }
+              }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    title
+                    quantity
+                  }
                 }
               }
             }
@@ -1490,7 +1467,7 @@ app.all('/api/shopify/order-status', async (req: express.Request, res: express.R
     `;
 
     const response = await client.request(graphqlQuery, {
-      variables: { query: searchQuery.trim() },
+      variables: { queryFilter: queryFilter.trim() || undefined },
     });
 
     const orderEdges = (response.data as any)?.orders?.edges || [];
@@ -1501,24 +1478,16 @@ app.all('/api/shopify/order-status', async (req: express.Request, res: express.R
       created_at: order.createdAt,
       financial_status: order.displayFinancialStatus,
       fulfillment_status: order.displayFulfillmentStatus,
-      total_price: `${order.totalPriceSet?.shopMoney?.amount} ${order.totalPriceSet?.shopMoney?.currencyCode}`,
-      customer: {
-        first_name: order.customer?.firstName || "",
-        last_name: order.customer?.lastName || "",
-        email: order.customer?.email || "",
-      },
+      total_price: `${order.totalPriceSet?.shopMoney?.amount || 0} ${order.totalPriceSet?.shopMoney?.currencyCode || ''}`,
       items: (order.lineItems?.edges || []).map(({ node: item }: any) => ({
         title: item.title,
-        variant_title: item.variantTitle || "Default",
         quantity: item.quantity,
-        price: `${item.originalUnitPriceSet?.shopMoney?.amount} ${item.originalUnitPriceSet?.shopMoney?.currencyCode}`,
-        sku: item.sku || "",
       })),
       tracking: (order.fulfillments || []).map((f: any) => ({
         fulfillment_status: f.status,
-        tracking_company: f.trackingInfo[0]?.company || "N/A",
-        tracking_number: f.trackingInfo[0]?.number || "N/A",
-        tracking_url: f.trackingInfo[0]?.url || null,
+        tracking_company: f.trackingInfo?.[0]?.company || "N/A",
+        tracking_number: f.trackingInfo?.[0]?.number || "N/A",
+        tracking_url: f.trackingInfo?.[0]?.url || null,
       })),
     }));
 
