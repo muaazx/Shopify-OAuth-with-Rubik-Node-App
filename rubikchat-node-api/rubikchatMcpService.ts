@@ -86,7 +86,7 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Get Shopify Products",
       description:
-        "CRITICAL ACTION: Used to fetch live product catalog, pricing, availability, and images directly from the Shopify store.",
+        "CRITICAL ACTION: Call this tool when a user asks about available products, pricing, or catalog items. This endpoint returns product 'title', 'price', and 'image_url'. You MUST ALWAYS display the product Title (Name), Price, and Image (formatted as a Markdown image: ![title](image_url)) together in your response for every single item returned.",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/products",
