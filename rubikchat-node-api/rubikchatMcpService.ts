@@ -1,6 +1,8 @@
 import axios from "axios";
 import crypto from "crypto";
+import { PrismaClient } from "@prisma/client";
 
+const prisma = new PrismaClient();
 const RUBIKCHAT_BASE_URL = "https://api-proxy-v1.rubikchat.com/api";
 
 interface AutoMcpOptions {
@@ -19,31 +21,60 @@ export async function setupShopifyMcpForAgent({
     Authorization: `Bearer ${authToken}`,
   };
 
-  // -------------------------------------------------------------
-  // STEP 1: Create the outer MCP API Collection
-  // -------------------------------------------------------------
-  const collectionResponse = await axios.post(
-    `${RUBIKCHAT_BASE_URL}/organizations/${organizationSlug}/mcp-apis`,
-    {
-      name: "shopify_actions",
-      description: "Automated Shopify Store Integration Actions",
-      is_active: true,
-      actions: [],
-    },
-    { headers }
-  );
+  let mcpApiId: string | null = null;
 
-  // 🔍 SAFELY EXTRACT ID (Handles both 'api' object and 'apis' array responses)
-  const mcpData = collectionResponse.data;
-  const mcpApiId = String(
-    mcpData?.api?.id || mcpData?.apis?.[0]?.id || mcpData?.id
-  );
-
-  if (!mcpApiId || mcpApiId === "undefined") {
-    throw new Error(`Failed to extract Collection ID. Response: ${JSON.stringify(mcpData)}`);
+  // Check if mcp_api_id is already saved in database for this store
+  try {
+    const existingOrg = await prisma.rubikchat_organizations.findUnique({
+      where: { store_url: storeUrl },
+      select: { mcp_api_id: true },
+    });
+    if (existingOrg?.mcp_api_id) {
+      mcpApiId = existingOrg.mcp_api_id;
+      console.log(`ℹ️ [MCP AUTO-SETUP] Reusing existing mcp_api_id (${mcpApiId}) from database for store: ${storeUrl}`);
+    }
+  } catch (err: any) {
+    console.warn(`⚠️ [MCP AUTO-SETUP] Failed to query mcp_api_id from database:`, err.message);
   }
 
-  console.log(`✅ [MCP AUTO-SETUP] Collection created with ID: ${mcpApiId}`);
+  // -------------------------------------------------------------
+  // STEP 1: Create the outer MCP API Collection (if not already existing)
+  // -------------------------------------------------------------
+  if (!mcpApiId) {
+    const collectionResponse = await axios.post(
+      `${RUBIKCHAT_BASE_URL}/organizations/${organizationSlug}/mcp-apis`,
+      {
+        name: "shopify_actions",
+        description: "Automated Shopify Store Integration Actions",
+        is_active: true,
+        actions: [],
+      },
+      { headers }
+    );
+
+    // 🔍 SAFELY EXTRACT ID (Handles both 'api' object and 'apis' array responses)
+    const mcpData = collectionResponse.data;
+    mcpApiId = String(
+      mcpData?.api?.id || mcpData?.apis?.[0]?.id || mcpData?.id
+    );
+
+    if (!mcpApiId || mcpApiId === "undefined") {
+      throw new Error(`Failed to extract Collection ID. Response: ${JSON.stringify(mcpData)}`);
+    }
+
+    console.log(`✅ [MCP AUTO-SETUP] Collection created with ID: ${mcpApiId}`);
+
+    // 💾 SAVE `mcp_api_id` TO DATABASE
+    try {
+      await prisma.rubikchat_organizations.update({
+        where: { store_url: storeUrl },
+        data: { mcp_api_id: mcpApiId },
+      });
+      console.log(`✅ [MCP AUTO-SETUP] Stored mcp_api_id (${mcpApiId}) in database for store: ${storeUrl}`);
+    } catch (dbError: any) {
+      console.warn("⚠️ Failed to store mcp_api_id in database:", dbError.message);
+    }
+  }
 
   // -------------------------------------------------------------
   // STEP 2: Build payloads for all 3 Actions

@@ -76,6 +76,7 @@ model rubikchat_organizations {
   email      String
   password   String?
   token      String?
+  mcp_api_id String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   agents     rubikchat_agents[]
