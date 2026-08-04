@@ -1197,6 +1197,7 @@ const handleMcpProducts = async (req: express.Request, res: express.Response) =>
       product_type: p.product_type,
       tags: p.tags,
       price: p.variants?.[0]?.price ? `${p.variants[0].price}` : "0.00",
+      imageUrl: p.image?.src || p.images?.[0]?.src || null,
       description: (p.body_html || '').replace(/<[^>]*>?/gm, '').trim(),
       variants: (p.variants || []).map((v: any) => ({
         id: v.id,
