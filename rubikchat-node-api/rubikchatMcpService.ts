@@ -33,8 +33,17 @@ export async function setupShopifyMcpForAgent({
     { headers }
   );
 
-  // Extract the created collection ID
-  const mcpApiId = String(collectionResponse.data.apis[0].id);
+  // 🔍 SAFELY EXTRACT ID (Handles both 'api' object and 'apis' array responses)
+  const mcpData = collectionResponse.data;
+  const mcpApiId = String(
+    mcpData?.api?.id || mcpData?.apis?.[0]?.id || mcpData?.id
+  );
+
+  if (!mcpApiId || mcpApiId === "undefined") {
+    throw new Error(`Failed to extract Collection ID. Response: ${JSON.stringify(mcpData)}`);
+  }
+
+  console.log(`✅ [MCP AUTO-SETUP] Collection created with ID: ${mcpApiId}`);
 
   // -------------------------------------------------------------
   // STEP 2: Build payloads for all 3 Actions
