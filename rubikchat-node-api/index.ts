@@ -7,6 +7,7 @@ import { shopifyApi, ApiVersion, DataType } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import axios from 'axios';
 import FormData from 'form-data';
+import { setupShopifyMcpForAgent } from './rubikchatMcpService';
 
 dotenv.config();
 
@@ -1072,7 +1073,37 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
         },
       });
 
-      return res.json({ success: true, agentId });
+      // Auto-configure Shopify MCP Actions on RubikChat
+      let mcpResult: { success: boolean; mcpCollectionId?: string } = { success: false };
+      try {
+        const orgSlug = shopifyRecord.rubik_organization_slug || organizationIdentifier;
+        if (orgSlug && orgRecord.token) {
+          console.log(`🔧 [MCP AUTO-SETUP] Configuring Shopify MCP actions for ${shop}...`);
+          mcpResult = await setupShopifyMcpForAgent({
+            organizationSlug: orgSlug,
+            authToken: orgRecord.token,
+            storeUrl: shop,
+          });
+          console.log(`✅ [MCP AUTO-SETUP] MCP Collection created: ${mcpResult.mcpCollectionId}`);
+        } else {
+          console.warn('⚠️ [MCP AUTO-SETUP] Skipped — missing organization slug or auth token.');
+        }
+      } catch (mcpError: any) {
+        console.error('⚠️ [MCP AUTO-SETUP] Failed to auto-configure MCP actions:', mcpError?.response?.data || mcpError.message);
+        // Non-blocking: agent creation still succeeded
+      }
+
+      return res.json({
+        success: true,
+        agentId,
+        mcpConfigured: mcpResult.success,
+        mcpCollectionId: mcpResult.mcpCollectionId || null,
+        featuresEnabled: mcpResult.success ? [
+          'Product Details & Live Catalog',
+          'Order Status & Tracking',
+          'Automated Cart & Multi-item Checkout Permalinks',
+        ] : [],
+      });
     } else {
       console.log('Agent created but no agent_id was returned. Response:', response.data);
       await prisma.api_logs.create({
