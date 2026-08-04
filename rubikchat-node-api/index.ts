@@ -143,108 +143,87 @@ app.get(['/api/auth/shopify/callback', '/api/shopify/callback'], async (req, res
 });
 
 // Phase 3: RubikChat -> GET /api/shopify/products -> Node -> Read Shopify credentials -> Call Shopify -> Return Products
-app.all('/api/shopify/products', async (req: express.Request, res: express.Response) => {
+app.all("/api/shopify/products", async (req: express.Request, res: express.Response) => {
   try {
-    // Check POST body, GET query params, or headers for shop
     const shop = (req.body?.shop || req.query?.shop || req.headers["x-shop"]) as string;
 
     if (!shop || shop === "{shop}") {
-      return res.status(400).json({ error: "Missing required shop parameter." });
+      return res.status(400).json({ success: false, error: "Missing required parameter: shop" });
     }
 
-    // Fetch access_token from Supabase
-    const integration = await prisma.shopify_integrations.findUnique({
+    const store = await prisma.shopify_integrations.findUnique({
       where: { store_url: shop },
     });
 
-    if (!integration || !integration.access_token) {
-      return res.status(404).json({ error: `No access token found for store: ${shop}` });
+    if (!store || !store.access_token) {
+      return res.status(404).json({
+        success: false,
+        error: `Store access token not found for '${shop}'.`,
+      });
     }
 
-    // Query Shopify Admin GraphQL API
-    const shopifyGraphqlUrl = `https://${shop}/admin/api/2024-04/graphql.json`;
-    const query = `
-      query getProducts {
-        products(first: 10) {
-          edges {
-            node {
-              id
-              title
-              handle
-              status
-              totalInventory
-              priceRangeV2 {
-                minVariantPrice {
-                  amount
-                  currencyCode
-                }
-              }
-              variants(first: 5) {
-                edges {
-                  node {
-                    id
-                    title
-                    price
+    // GraphQL query fetching products, titles, and variant prices
+    const graphqlQuery = {
+      query: `
+        query getProducts {
+          products(first: 20) {
+            edges {
+              node {
+                id
+                title
+                variants(first: 1) {
+                  edges {
+                    node {
+                      id
+                      price
+                    }
                   }
                 }
-              }
-              images(first: 1) {
-                edges { node { url } }
               }
             }
           }
         }
-      }
-    `;
+      `,
+    };
 
-    const shopifyRes = await fetch(shopifyGraphqlUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": integration.access_token,
-      },
-      body: JSON.stringify({ query }),
-    });
+    const shopifyRes = await fetch(
+      `https://${shop}/admin/api/2024-01/graphql.json`,
+      {
+        method: "POST",
+        headers: {
+          "X-Shopify-Access-Token": store.access_token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(graphqlQuery),
+      }
+    );
 
     const data = (await shopifyRes.json()) as any;
-
-    if (data.errors) {
-      return res.status(400).json({ error: "Shopify API Error", details: data.errors });
-    }
-
     const productEdges = data.data?.products?.edges || [];
 
-    // Map into a clean, flat list of products with guaranteed titles
+    // CRITICAL MAP: Ensure title and price are explicitly mapped at the root of each item
     const formattedProducts = productEdges.map((edge: any) => {
       const node = edge.node;
-      const variant = node.variants?.edges?.[0]?.node;
-      const rawPrice = variant?.price || node.priceRangeV2?.minVariantPrice?.amount || "N/A";
-      const currency = node.priceRangeV2?.minVariantPrice?.currencyCode || "";
-      const formattedPrice = currency ? `${rawPrice} ${currency}` : rawPrice;
-      const rawId = node.id ? node.id.split("/").pop() : "";
+      const variant = node.variants?.edges[0]?.node;
 
       return {
         title: node.title || "Untitled Product",
-        product_name: node.title || "Untitled Product",
-        name: node.title || "Untitled Product",
-        price: formattedPrice,
-        id: rawId,
-        handle: node.handle || "",
-        status: node.status || "",
-        inventory: node.totalInventory || 0,
-        imageUrl: node.images?.edges?.[0]?.node?.url || null,
+        price: variant?.price || "0.00",
+        id: node.id.split("/").pop(),
       };
     });
 
     return res.status(200).json({
       success: true,
-      shop,
       count: formattedProducts.length,
       products: formattedProducts,
     });
-  } catch (err: any) {
-    console.error("Products endpoint error:", err);
-    return res.status(500).json({ error: "Internal Server Error", message: err.message });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch products",
+      details: error.message,
+    });
   }
 });
 
