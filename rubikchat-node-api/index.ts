@@ -1511,303 +1511,57 @@ app.all('/api/shopify/order-status', async (req: express.Request, res: express.R
 app.all("/api/shopify/cart", async (req: express.Request, res: express.Response) => {
   try {
     const shop = (req.body?.shop || req.query?.shop) as string;
-    const action = (req.body?.action || req.query?.action || "create_cart") as string;
-    const cartId = (req.body?.cart_id || req.query?.cart_id) as string;
-
-    // Parse merchandise items passed in body or query
+    
+    // Support single variant query params or items array from POST body
+    let variantId = req.query?.variant_id as string;
+    let quantity = (req.query?.quantity as string) || "1";
     let lineItems = req.body?.items || [];
+
     if (typeof lineItems === "string") {
       try { lineItems = JSON.parse(lineItems); } catch (e) { lineItems = []; }
-    }
-
-    // Handle query param single item fallback for quick testing
-    const variantId = req.query?.variant_id as string;
-    const quantity = parseInt((req.query?.quantity as string) || "1", 10);
-    if (variantId && lineItems.length === 0) {
-      lineItems.push({ merchandiseId: variantId, quantity });
     }
 
     if (!shop) {
       return res.status(400).json({ success: false, error: "Missing required parameter: shop" });
     }
 
-    // Fetch store access token from DB
-    const store = await prisma.shopify_integrations.findUnique({
-      where: { store_url: shop },
+    // Format line items into Shopify Permalink syntax
+    let cartPath = "";
+
+    if (lineItems.length > 0) {
+      cartPath = lineItems
+        .map((item: any) => {
+          const rawId = (item.merchandiseId || item.variant_id || "").toString().replace(/\D/g, "");
+          const qty = item.quantity || 1;
+          return `${rawId}:${qty}`;
+        })
+        .filter((part: string) => part.startsWith(":") === false)
+        .join(",");
+    } else if (variantId) {
+      const rawId = variantId.replace(/\D/g, "");
+      cartPath = `${rawId}:${quantity}`;
+    }
+
+    if (!cartPath) {
+      return res.status(400).json({
+        success: false,
+        error: "At least one product variant ID is required to generate a checkout link.",
+      });
+    }
+
+    // Construct 1-Click Shopify Checkout Link
+    const checkoutUrl = `https://${shop}/cart/${cartPath}`;
+
+    return res.status(200).json({
+      success: true,
+      action: "created",
+      checkout_url: checkoutUrl,
+      message: "1-Click checkout URL generated successfully.",
     });
-
-    if (!store || !store.access_token) {
-      return res.status(404).json({ success: false, error: "Store access token not found" });
-    }
-
-    // Ensure Variant IDs are properly formatted GIDs (gid://shopify/ProductVariant/...)
-    const formattedLines = lineItems.map((item: any) => ({
-      merchandiseId: item.merchandiseId.startsWith("gid://")
-        ? item.merchandiseId
-        : `gid://shopify/ProductVariant/${item.merchandiseId}`,
-      quantity: item.quantity || 1,
-    }));
-
-    // --- STEP A: Obtain a Storefront Access Token ---
-    let storefrontToken: string | null = null;
-
-    try {
-      // Check if a storefront token already exists for the merchant
-      const existingTokensRes = await fetch(
-        `https://${shop}/admin/api/2024-01/storefront_access_tokens.json`,
-        {
-          method: "GET",
-          headers: {
-            "X-Shopify-Access-Token": store.access_token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const existingData = (await existingTokensRes.json()) as any;
-      const tokens = existingData?.storefront_access_tokens || [];
-
-      if (tokens.length > 0) {
-        storefrontToken = tokens[0].access_token;
-      } else {
-        // Generate a new Storefront Access Token if none exist
-        const createTokenRes = await fetch(
-          `https://${shop}/admin/api/2024-01/storefront_access_tokens.json`,
-          {
-            method: "POST",
-            headers: {
-              "X-Shopify-Access-Token": store.access_token,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              storefront_access_token: {
-                title: "RubikChat MCP Cart Token",
-              },
-            }),
-          }
-        );
-
-        const createdData = (await createTokenRes.json()) as any;
-        storefrontToken = createdData?.storefront_access_token?.access_token;
-      }
-    } catch (err: any) {
-      return res.status(500).json({
-        success: false,
-        error: "Failed to generate Storefront token",
-        details: err.message,
-      });
-    }
-
-    if (!storefrontToken) {
-      return res.status(500).json({
-        success: false,
-        error: "Unable to authorize Storefront API access for this store.",
-      });
-    }
-
-    // --- STEP B: Execute Cart Mutations against the Storefront API ---
-    if (action === "create_cart") {
-      if (formattedLines.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: "At least one product variant (variant_id or items) is required.",
-        });
-      }
-
-      const mutation = {
-        query: `
-          mutation cartCreate($input: CartInput!) {
-            cartCreate(input: $input) {
-              cart {
-                id
-                checkoutUrl
-                totalQuantity
-                cost {
-                  totalAmount {
-                    amount
-                    currencyCode
-                  }
-                }
-                lines(first: 10) {
-                  edges {
-                    node {
-                      id
-                      quantity
-                      merchandise {
-                        ... on ProductVariant {
-                          id
-                          title
-                          price {
-                            amount
-                            currencyCode
-                          }
-                          product {
-                            title
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              userErrors {
-                field
-                message
-              }
-            }
-          }
-        `,
-        variables: {
-          input: {
-            lines: formattedLines,
-          },
-        },
-      };
-
-      // POST to Storefront GraphQL Endpoint
-      const shopifyRes = await fetch(
-        `https://${shop}/api/2024-01/graphql.json`,
-        {
-          method: "POST",
-          headers: {
-            "X-Shopify-Storefront-Access-Token": storefrontToken,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(mutation),
-        }
-      );
-
-      const data = (await shopifyRes.json()) as any;
-
-      if (data.errors) {
-        return res.status(400).json({
-          success: false,
-          error: "Storefront GraphQL returned errors",
-          details: data.errors,
-        });
-      }
-
-      const result = data.data?.cartCreate;
-
-      if (result?.userErrors?.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: result.userErrors,
-        });
-      }
-
-      const cart = result?.cart;
-
-      if (!cart) {
-        return res.status(400).json({
-          success: false,
-          error: "Failed to create cart on Shopify Storefront API",
-          details: data,
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        action: "created",
-        cart_id: cart.id,
-        checkout_url: cart.checkoutUrl,
-        total_quantity: cart.totalQuantity,
-        total_price: `${cart.cost.totalAmount.amount} ${cart.cost.totalAmount.currencyCode}`,
-        items: cart.lines.edges.map(({ node }: any) => ({
-          title: `${node.merchandise.product.title} - ${node.merchandise.title}`,
-          quantity: node.quantity,
-          unit_price: `${node.merchandise.price.amount} ${node.merchandise.price.currencyCode}`,
-        })),
-      });
-    }
-
-    // 2. ADD ITEMS TO EXISTING CART MUTATION
-    if (action === "add_to_cart") {
-      if (!cartId) {
-        return res.status(400).json({ success: false, error: "cart_id is required for add_to_cart action." });
-      }
-
-      const mutation = {
-        query: `
-          mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
-            cartLinesAdd(cartId: $cartId, lines: $lines) {
-              cart {
-                id
-                checkoutUrl
-                totalQuantity
-                cost {
-                  totalAmount {
-                    amount
-                    currencyCode
-                  }
-                }
-              }
-              userErrors {
-                field
-                message
-              }
-            }
-          }
-        `,
-        variables: {
-          cartId: cartId.startsWith("gid://") ? cartId : `gid://shopify/Cart/${cartId}`,
-          lines: formattedLines,
-        },
-      };
-
-      const shopifyRes = await fetch(
-        `https://${shop}/api/2024-01/graphql.json`,
-        {
-          method: "POST",
-          headers: {
-            "X-Shopify-Storefront-Access-Token": storefrontToken,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(mutation),
-        }
-      );
-
-      const data = (await shopifyRes.json()) as any;
-
-      if (data.errors) {
-        return res.status(400).json({
-          success: false,
-          error: "Storefront GraphQL returned errors",
-          details: data.errors,
-        });
-      }
-
-      const result = data.data?.cartLinesAdd;
-
-      if (result?.userErrors?.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: result.userErrors,
-        });
-      }
-
-      if (!result?.cart) {
-        return res.status(400).json({
-          success: false,
-          error: "Failed to update cart on Shopify Storefront API",
-          details: data,
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        action: "updated",
-        checkout_url: result.cart.checkoutUrl,
-        total_quantity: result.cart.totalQuantity,
-        total_price: `${result.cart.cost.totalAmount.amount} ${result.cart.cost.totalAmount.currencyCode}`,
-      });
-    }
-
-    return res.status(400).json({ success: false, error: "Invalid action type specified." });
   } catch (error: any) {
     return res.status(500).json({
       success: false,
-      error: "Cart creation failed",
+      error: "Failed to generate cart checkout link",
       details: error.message,
     });
   }
