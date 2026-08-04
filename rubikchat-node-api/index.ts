@@ -179,6 +179,15 @@ app.all('/api/shopify/products', async (req: express.Request, res: express.Respo
                   currencyCode
                 }
               }
+              variants(first: 5) {
+                edges {
+                  node {
+                    id
+                    title
+                    price
+                  }
+                }
+              }
               images(first: 1) {
                 edges { node { url } }
               }
@@ -197,33 +206,41 @@ app.all('/api/shopify/products', async (req: express.Request, res: express.Respo
       body: JSON.stringify({ query }),
     });
 
-    const data = await shopifyRes.json();
+    const data = (await shopifyRes.json()) as any;
 
     if (data.errors) {
       return res.status(400).json({ error: "Shopify API Error", details: data.errors });
     }
 
-    const products = (data.data?.products?.edges || []).map(({ node }: any) => ({
-      id: node.id,
-      title: node.title,
-      product_name: node.title,
-      name: node.title,
-      handle: node.handle,
-      status: node.status,
-      inventory: node.totalInventory,
-      price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
-      variants: [{
-        id: node.id,
-        title: node.title,
-        price: node.priceRangeV2.minVariantPrice.amount,
-      }],
-      imageUrl: node.images.edges[0]?.node?.url || null,
-    }));
+    const productEdges = data.data?.products?.edges || [];
+
+    // Map into a clean, flat list of products with guaranteed titles
+    const formattedProducts = productEdges.map((edge: any) => {
+      const node = edge.node;
+      const variant = node.variants?.edges?.[0]?.node;
+      const rawPrice = variant?.price || node.priceRangeV2?.minVariantPrice?.amount || "N/A";
+      const currency = node.priceRangeV2?.minVariantPrice?.currencyCode || "";
+      const formattedPrice = currency ? `${rawPrice} ${currency}` : rawPrice;
+      const rawId = node.id ? node.id.split("/").pop() : "";
+
+      return {
+        title: node.title || "Untitled Product",
+        product_name: node.title || "Untitled Product",
+        name: node.title || "Untitled Product",
+        price: formattedPrice,
+        id: rawId,
+        handle: node.handle || "",
+        status: node.status || "",
+        inventory: node.totalInventory || 0,
+        imageUrl: node.images?.edges?.[0]?.node?.url || null,
+      };
+    });
 
     return res.status(200).json({
       success: true,
       shop,
-      products,
+      count: formattedProducts.length,
+      products: formattedProducts,
     });
   } catch (err: any) {
     console.error("Products endpoint error:", err);
