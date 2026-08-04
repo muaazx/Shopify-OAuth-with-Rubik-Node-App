@@ -162,7 +162,7 @@ app.all("/api/shopify/products", async (req: express.Request, res: express.Respo
       });
     }
 
-    // GraphQL query fetching products, titles, and variant prices
+    // Updated GraphQL Query: Fetch unique featured image per product
     const graphqlQuery = {
       query: `
         query getProducts {
@@ -171,11 +171,18 @@ app.all("/api/shopify/products", async (req: express.Request, res: express.Respo
               node {
                 id
                 title
+                status
+                featuredImage {
+                  url
+                }
                 variants(first: 1) {
                   edges {
                     node {
                       id
                       price
+                      image {
+                        url
+                      }
                     }
                   }
                 }
@@ -201,20 +208,26 @@ app.all("/api/shopify/products", async (req: express.Request, res: express.Respo
     const data = (await shopifyRes.json()) as any;
     const productEdges = data.data?.products?.edges || [];
 
-    // CRITICAL MAP: Ensure title and price are explicitly mapped at the root of each item
+    // Map each item strictly to its OWN image
     const formattedProducts = productEdges.map((edge: any) => {
       const node = edge.node;
       const variant = node.variants?.edges[0]?.node;
 
+      // Extract unique image per product (Product Featured Image OR Variant Image)
+      const imageUrl = node.featuredImage?.url || variant?.image?.url || null;
+
       return {
         title: node.title || "Untitled Product",
-        price: variant?.price || "0.00",
+        price: variant?.price ? `${variant.price} USD` : "N/A",
         id: node.id.split("/").pop(),
+        status: node.status || "ACTIVE",
+        imageUrl: imageUrl, // Ensures unique image per item or null
       };
     });
 
     return res.status(200).json({
       success: true,
+      shop,
       count: formattedProducts.length,
       products: formattedProducts,
     });
