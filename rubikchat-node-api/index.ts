@@ -1507,6 +1507,236 @@ app.all('/api/shopify/order-status', async (req: express.Request, res: express.R
   }
 });
 
+// Cart & Checkout Endpoint (Supports both POST for MCP and GET for Browser Testing)
+app.all("/api/shopify/cart", async (req: express.Request, res: express.Response) => {
+  try {
+    const shop = (req.body?.shop || req.query?.shop) as string;
+    const action = (req.body?.action || req.query?.action || "create_cart") as string;
+    const cartId = (req.body?.cart_id || req.query?.cart_id) as string;
+
+    // Parse merchandise items passed in body or query
+    let lineItems = req.body?.items || [];
+    if (typeof lineItems === "string") {
+      try { lineItems = JSON.parse(lineItems); } catch (e) { lineItems = []; }
+    }
+
+    // Handle query param single item fallback for quick testing
+    const variantId = req.query?.variant_id as string;
+    const quantity = parseInt((req.query?.quantity as string) || "1", 10);
+    if (variantId && lineItems.length === 0) {
+      lineItems.push({ merchandiseId: variantId, quantity });
+    }
+
+    if (!shop) {
+      return res.status(400).json({ success: false, error: "Missing required parameter: shop" });
+    }
+
+    // Fetch store access token from DB
+    const store = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!store || !store.access_token) {
+      return res.status(404).json({ success: false, error: "Store access token not found" });
+    }
+
+    // Ensure Variant IDs are properly formatted GIDs (gid://shopify/ProductVariant/...)
+    const formattedLines = lineItems.map((item: any) => ({
+      merchandiseId: item.merchandiseId.startsWith("gid://")
+        ? item.merchandiseId
+        : `gid://shopify/ProductVariant/${item.merchandiseId}`,
+      quantity: item.quantity || 1,
+    }));
+
+    // 1. CREATE CART MUTATION
+    if (action === "create_cart") {
+      if (formattedLines.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "At least one product variant (variant_id or items) is required to create a cart.",
+        });
+      }
+
+      const mutation = {
+        query: `
+          mutation cartCreate($input: CartInput!) {
+            cartCreate(input: $input) {
+              cart {
+                id
+                checkoutUrl
+                totalQuantity
+                cost {
+                  totalAmount {
+                    amount
+                    currencyCode
+                  }
+                }
+                lines(first: 10) {
+                  edges {
+                    node {
+                      id
+                      quantity
+                      merchandise {
+                        ... on ProductVariant {
+                          id
+                          title
+                          price {
+                            amount
+                            currencyCode
+                          }
+                          product {
+                            title
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `,
+        variables: {
+          input: {
+            lines: formattedLines,
+          },
+        },
+      };
+
+      const shopifyRes = await fetch(
+        `https://${shop}/admin/api/2024-01/graphql.json`,
+        {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": store.access_token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(mutation),
+        }
+      );
+
+      const data = (await shopifyRes.json()) as any;
+      const result = data.data?.cartCreate;
+
+      if (result?.userErrors?.length > 0) {
+        return res.status(400).json({
+          success: false,
+          errors: result.userErrors,
+        });
+      }
+
+      const cart = result?.cart;
+
+      if (!cart) {
+        return res.status(400).json({
+          success: false,
+          error: "Failed to create cart on Shopify",
+          details: data.errors || data,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        action: "created",
+        cart_id: cart.id,
+        checkout_url: cart.checkoutUrl,
+        total_quantity: cart.totalQuantity,
+        total_price: `${cart.cost.totalAmount.amount} ${cart.cost.totalAmount.currencyCode}`,
+        items: cart.lines.edges.map(({ node }: any) => ({
+          title: `${node.merchandise.product.title} - ${node.merchandise.title}`,
+          quantity: node.quantity,
+          unit_price: `${node.merchandise.price.amount} ${node.merchandise.price.currencyCode}`,
+        })),
+      });
+    }
+
+    // 2. ADD ITEMS TO EXISTING CART MUTATION
+    if (action === "add_to_cart") {
+      if (!cartId) {
+        return res.status(400).json({ success: false, error: "cart_id is required for add_to_cart action." });
+      }
+
+      const mutation = {
+        query: `
+          mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
+            cartLinesAdd(cartId: $cartId, lines: $lines) {
+              cart {
+                id
+                checkoutUrl
+                totalQuantity
+                cost {
+                  totalAmount {
+                    amount
+                    currencyCode
+                  }
+                }
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `,
+        variables: {
+          cartId: cartId.startsWith("gid://") ? cartId : `gid://shopify/Cart/${cartId}`,
+          lines: formattedLines,
+        },
+      };
+
+      const shopifyRes = await fetch(
+        `https://${shop}/admin/api/2024-01/graphql.json`,
+        {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": store.access_token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(mutation),
+        }
+      );
+
+      const data = (await shopifyRes.json()) as any;
+      const result = data.data?.cartLinesAdd;
+
+      if (result?.userErrors?.length > 0) {
+        return res.status(400).json({
+          success: false,
+          errors: result.userErrors,
+        });
+      }
+
+      if (!result?.cart) {
+        return res.status(400).json({
+          success: false,
+          error: "Failed to update cart on Shopify",
+          details: data.errors || data,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        action: "updated",
+        checkout_url: result.cart.checkoutUrl,
+        total_quantity: result.cart.totalQuantity,
+        total_price: `${result.cart.cost.totalAmount.amount} ${result.cart.cost.totalAmount.currencyCode}`,
+      });
+    }
+
+    return res.status(400).json({ success: false, error: "Invalid action type specified." });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: "Cart creation failed",
+      details: error.message,
+    });
+  }
+});
+
 
 function convertProductsToMarkdown(products: any[]): string {
   let table = `\n\n## Product Catalog\n\n`;
