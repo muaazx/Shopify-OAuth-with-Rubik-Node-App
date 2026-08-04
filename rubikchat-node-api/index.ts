@@ -1531,114 +1531,157 @@ app.all('/api/shopify/order-status', async (req: express.Request, res: express.R
 app.all("/api/shopify/cart", async (req: express.Request, res: express.Response) => {
   try {
     const shop = (req.body?.shop || req.query?.shop) as string;
-    const productName = (
-      req.body?.product_name || 
-      req.query?.product_name || 
-      req.body?.query || 
-      req.query?.query || ""
-    ).toString().trim();
-    
-    let variantId = (req.body?.variant_id || req.query?.variant_id || "").toString().trim();
-    const quantity = parseInt((req.body?.quantity || req.query?.quantity || "1").toString(), 10) || 1;
 
     if (!shop) {
       return res.status(400).json({ success: false, error: "Missing required parameter: shop" });
     }
 
-    // 1. Direct Variant ID Fast-Path
-    if (variantId) {
-      const rawId = variantId.replace(/\D/g, "");
-      return res.status(200).json({
-        success: true,
-        action: "created",
-        checkout_url: `https://${shop}/cart/${rawId}:${quantity}`,
-        message: "1-Click checkout URL generated successfully.",
+    // 1. Parse line items array or single item query fallbacks
+    let rawItems = req.body?.items || [];
+    if (typeof rawItems === "string") {
+      try { rawItems = JSON.parse(rawItems); } catch (e) { rawItems = []; }
+    }
+
+    const singleVariantId = (req.body?.variant_id || req.query?.variant_id || "").toString().trim();
+    const singleProductName = (
+      req.body?.product_name ||
+      req.query?.product_name ||
+      req.body?.query ||
+      req.query?.query || ""
+    ).toString().trim();
+    const singleQuantity = parseInt((req.body?.quantity || req.query?.quantity || "1").toString(), 10) || 1;
+
+    if (!Array.isArray(rawItems)) {
+      rawItems = [];
+    }
+
+    if (rawItems.length === 0 && (singleVariantId || singleProductName)) {
+      rawItems.push({
+        variant_id: singleVariantId,
+        product_name: singleProductName,
+        quantity: singleQuantity,
       });
     }
 
-    // 2. Search Product by Title/Keyword via GraphQL
-    if (productName) {
+    if (rawItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide either product_name, variant_id, or an items array.",
+      });
+    }
+
+    // Lazy load store integration token if GraphQL lookup is required
+    let storeToken: string | null = null;
+    const getStoreToken = async () => {
+      if (storeToken) return storeToken;
       const store = await prisma.shopify_integrations.findUnique({
         where: { store_url: shop },
       });
+      storeToken = store?.access_token || null;
+      return storeToken;
+    };
 
-      if (!store || !store.access_token) {
-        return res.status(404).json({
-          success: false,
-          error: `Store access token not found for '${shop}'.`,
-        });
+    // 2. Resolve Variant IDs for each item
+    const resolvedItems: { variant_id: string; quantity: number; title?: string }[] = [];
+
+    for (const item of rawItems) {
+      let rawVariantId = (item.variant_id || item.variantId || item.merchandiseId || "").toString().trim();
+      const itemQty = parseInt((item.quantity || "1").toString(), 10) || 1;
+      const itemProductName = (item.product_name || item.title || item.name || "").toString().trim();
+
+      if (rawVariantId) {
+        const cleanId = rawVariantId.replace(/\D/g, "");
+        if (cleanId) {
+          resolvedItems.push({ variant_id: cleanId, quantity: itemQty });
+          continue;
+        }
       }
 
-      const graphqlQuery = {
-        query: `
-          query searchProduct($query: String!) {
-            products(first: 1, query: $query) {
-              edges {
-                node {
-                  id
-                  title
-                  variants(first: 1) {
-                    edges {
-                      node {
-                        id
+      if (itemProductName) {
+        const token = await getStoreToken();
+        if (!token) {
+          return res.status(404).json({
+            success: false,
+            error: `Store access token not found for '${shop}'.`,
+          });
+        }
+
+        const graphqlQuery = {
+          query: `
+            query searchProduct($query: String!) {
+              products(first: 1, query: $query) {
+                edges {
+                  node {
+                    id
+                    title
+                    variants(first: 1) {
+                      edges {
+                        node {
+                          id
+                        }
                       }
                     }
                   }
                 }
               }
             }
+          `,
+          variables: { query: itemProductName },
+        };
+
+        const shopifyRes = await fetch(
+          `https://${shop}/admin/api/2024-01/graphql.json`,
+          {
+            method: "POST",
+            headers: {
+              "X-Shopify-Access-Token": token,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(graphqlQuery),
           }
-        `,
-        variables: { query: productName },
-      };
+        );
 
-      const shopifyRes = await fetch(
-        `https://${shop}/admin/api/2024-01/graphql.json`,
-        {
-          method: "POST",
-          headers: {
-            "X-Shopify-Access-Token": store.access_token,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(graphqlQuery),
+        const searchData = (await shopifyRes.json()) as any;
+        const productEdges = searchData.data?.products?.edges || [];
+
+        if (productEdges.length > 0) {
+          const matchedVariant = productEdges[0].node.variants.edges[0]?.node;
+          if (matchedVariant) {
+            const cleanId = matchedVariant.id.split("/").pop();
+            if (cleanId) {
+              resolvedItems.push({
+                variant_id: cleanId,
+                quantity: itemQty,
+                title: productEdges[0].node.title,
+              });
+            }
+          }
         }
-      );
-
-      const searchData = (await shopifyRes.json()) as any;
-      const productEdges = searchData.data?.products?.edges || [];
-
-      if (productEdges.length === 0) {
-        return res.status(200).json({
-          success: false,
-          found: false,
-          message: `No product found matching "${productName}".`,
-        });
       }
+    }
 
-      // Always extract the VARIANT ID (e.g., 53226629333359), NOT the product ID
-      const matchedVariant = productEdges[0].node.variants.edges[0]?.node;
-
-      if (!matchedVariant) {
-        return res.status(200).json({
-          success: false,
-          found: false,
-          message: `Product "${productEdges[0].node.title}" was found, but no purchasing variants were available.`,
-        });
-      }
-
-      variantId = matchedVariant.id.split("/").pop();
-
+    if (resolvedItems.length === 0) {
       return res.status(200).json({
-        success: true,
-        action: "created",
-        checkout_url: `https://${shop}/cart/${variantId}:${quantity}`,
-        message: "1-Click checkout URL generated successfully.",
+        success: false,
+        found: false,
+        message: "No matching product variants found for the provided items.",
       });
     }
 
-    return res.status(400).json({
-      success: false,
-      error: "Please provide either product_name or variant_id.",
+    // 3. Construct Consolidated Multi-Item Shopify Cart Permalink
+    const permalinkPath = resolvedItems
+      .map((item) => `${item.variant_id}:${item.quantity}`)
+      .join(",");
+
+    const checkoutUrl = `https://${shop}/cart/${permalinkPath}`;
+
+    return res.status(200).json({
+      success: true,
+      action: "created",
+      checkout_url: checkoutUrl,
+      total_items: resolvedItems.length,
+      items: resolvedItems,
+      message: "1-Click consolidated cart checkout URL generated successfully.",
     });
   } catch (error: any) {
     return res.status(500).json({
