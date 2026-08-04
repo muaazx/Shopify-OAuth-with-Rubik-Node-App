@@ -1379,6 +1379,165 @@ app.get('/api/mcp/orders', async (req: express.Request, res: express.Response) =
   }
 });
 
+// GET /api/shopify/order-status/ping - Health check endpoint
+app.get('/api/shopify/order-status/ping', (_req: express.Request, res: express.Response) => {
+  return res.json({
+    status: 'ok',
+    message: 'Order status endpoint is active'
+  });
+});
+
+// ALL /api/shopify/order-status - Order status handler endpoint
+app.all('/api/shopify/order-status', async (req: express.Request, res: express.Response) => {
+  try {
+    const shop = (req.query.shop || req.body?.shop || req.headers['x-shop']) as string;
+    const organizationId = (req.query.organization_id || req.body?.organization_id) as string;
+    const agentId = (req.query.agent_id || req.body?.agent_id) as string;
+    const orderName = (req.query.order_name || req.body?.order_name || req.query.order_number || req.body?.order_number) as string;
+    const email = (req.query.email || req.body?.email) as string;
+
+    if (!shop && !organizationId && !agentId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required identification parameter: 'shop', 'organization_id', or 'agent_id' is required."
+      });
+    }
+
+    const orgIdNum = organizationId ? parseInt(organizationId, 10) : NaN;
+
+    // Find integration matching shop or org/agent ID
+    const integration = await prisma.shopify_integrations.findFirst({
+      where: {
+        OR: [
+          ...(shop ? [{ store_url: shop }] : []),
+          ...(agentId ? [{ rubik_agent_id: String(agentId) }] : []),
+          ...(!isNaN(orgIdNum) ? [{ rubik_organization_id: orgIdNum }] : []),
+          ...(organizationId ? [{ rubik_organization_slug: String(organizationId) }] : []),
+        ],
+      },
+    });
+
+    if (!integration || !integration.access_token) {
+      return res.status(404).json({
+        success: false,
+        error: "No active Shopify integration found for the provided parameters.",
+      });
+    }
+
+    // Build GraphQL client session
+    const session = shopify.session.customAppSession(integration.store_url);
+    session.accessToken = integration.access_token;
+    const client = new shopify.clients.Graphql({ session });
+
+    let searchQuery = '';
+    if (orderName) {
+      const cleanName = String(orderName).trim().replace('#', '');
+      searchQuery += `name:#${cleanName} `;
+    }
+    if (email) {
+      searchQuery += `email:${String(email).trim()}`;
+    }
+
+    const graphqlQuery = `
+      query getOrders($query: String!) {
+        orders(first: 10, query: $query) {
+          edges {
+            node {
+              id
+              name
+              createdAt
+              displayFinancialStatus
+              displayFulfillmentStatus
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              customer {
+                firstName
+                lastName
+                email
+              }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    title
+                    variantTitle
+                    quantity
+                    originalUnitPriceSet {
+                      shopMoney {
+                        amount
+                        currencyCode
+                      }
+                    }
+                    sku
+                  }
+                }
+              }
+              fulfillments {
+                status
+                trackingInfo {
+                  company
+                  number
+                  url
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await client.request(graphqlQuery, {
+      variables: { query: searchQuery.trim() },
+    });
+
+    const orderEdges = (response.data as any)?.orders?.edges || [];
+
+    const formattedOrders = orderEdges.map(({ node: order }: any) => ({
+      order_id: order.id.split('/').pop(),
+      order_number: order.name,
+      created_at: order.createdAt,
+      financial_status: order.displayFinancialStatus,
+      fulfillment_status: order.displayFulfillmentStatus,
+      total_price: `${order.totalPriceSet?.shopMoney?.amount} ${order.totalPriceSet?.shopMoney?.currencyCode}`,
+      customer: {
+        first_name: order.customer?.firstName || "",
+        last_name: order.customer?.lastName || "",
+        email: order.customer?.email || "",
+      },
+      items: (order.lineItems?.edges || []).map(({ node: item }: any) => ({
+        title: item.title,
+        variant_title: item.variantTitle || "Default",
+        quantity: item.quantity,
+        price: `${item.originalUnitPriceSet?.shopMoney?.amount} ${item.originalUnitPriceSet?.shopMoney?.currencyCode}`,
+        sku: item.sku || "",
+      })),
+      tracking: (order.fulfillments || []).map((f: any) => ({
+        fulfillment_status: f.status,
+        tracking_company: f.trackingInfo[0]?.company || "N/A",
+        tracking_number: f.trackingInfo[0]?.number || "N/A",
+        tracking_url: f.trackingInfo[0]?.url || null,
+      })),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      shop: integration.store_url,
+      total_orders_found: formattedOrders.length,
+      orders: formattedOrders,
+    });
+  } catch (error: any) {
+    console.error("Error in /api/shopify/order-status:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch order status from Shopify.",
+      details: error.message,
+    });
+  }
+});
+
 
 function convertProductsToMarkdown(products: any[]): string {
   let table = `\n\n## Product Catalog\n\n`;
