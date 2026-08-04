@@ -1548,12 +1548,69 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       quantity: item.quantity || 1,
     }));
 
-    // 1. CREATE CART MUTATION
+    // --- STEP A: Obtain a Storefront Access Token ---
+    let storefrontToken: string | null = null;
+
+    try {
+      // Check if a storefront token already exists for the merchant
+      const existingTokensRes = await fetch(
+        `https://${shop}/admin/api/2024-01/storefront_access_tokens.json`,
+        {
+          method: "GET",
+          headers: {
+            "X-Shopify-Access-Token": store.access_token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const existingData = (await existingTokensRes.json()) as any;
+      const tokens = existingData?.storefront_access_tokens || [];
+
+      if (tokens.length > 0) {
+        storefrontToken = tokens[0].access_token;
+      } else {
+        // Generate a new Storefront Access Token if none exist
+        const createTokenRes = await fetch(
+          `https://${shop}/admin/api/2024-01/storefront_access_tokens.json`,
+          {
+            method: "POST",
+            headers: {
+              "X-Shopify-Access-Token": store.access_token,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              storefront_access_token: {
+                title: "RubikChat MCP Cart Token",
+              },
+            }),
+          }
+        );
+
+        const createdData = (await createTokenRes.json()) as any;
+        storefrontToken = createdData?.storefront_access_token?.access_token;
+      }
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to generate Storefront token",
+        details: err.message,
+      });
+    }
+
+    if (!storefrontToken) {
+      return res.status(500).json({
+        success: false,
+        error: "Unable to authorize Storefront API access for this store.",
+      });
+    }
+
+    // --- STEP B: Execute Cart Mutations against the Storefront API ---
     if (action === "create_cart") {
       if (formattedLines.length === 0) {
         return res.status(400).json({
           success: false,
-          error: "At least one product variant (variant_id or items) is required to create a cart.",
+          error: "At least one product variant (variant_id or items) is required.",
         });
       }
 
@@ -1607,12 +1664,13 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
         },
       };
 
+      // POST to Storefront GraphQL Endpoint
       const shopifyRes = await fetch(
-        `https://${shop}/admin/api/2024-01/graphql.json`,
+        `https://${shop}/api/2024-01/graphql.json`,
         {
           method: "POST",
           headers: {
-            "X-Shopify-Access-Token": store.access_token,
+            "X-Shopify-Storefront-Access-Token": storefrontToken,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(mutation),
@@ -1620,6 +1678,15 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       );
 
       const data = (await shopifyRes.json()) as any;
+
+      if (data.errors) {
+        return res.status(400).json({
+          success: false,
+          error: "Storefront GraphQL returned errors",
+          details: data.errors,
+        });
+      }
+
       const result = data.data?.cartCreate;
 
       if (result?.userErrors?.length > 0) {
@@ -1634,8 +1701,8 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       if (!cart) {
         return res.status(400).json({
           success: false,
-          error: "Failed to create cart on Shopify",
-          details: data.errors || data,
+          error: "Failed to create cart on Shopify Storefront API",
+          details: data,
         });
       }
 
@@ -1689,11 +1756,11 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       };
 
       const shopifyRes = await fetch(
-        `https://${shop}/admin/api/2024-01/graphql.json`,
+        `https://${shop}/api/2024-01/graphql.json`,
         {
           method: "POST",
           headers: {
-            "X-Shopify-Access-Token": store.access_token,
+            "X-Shopify-Storefront-Access-Token": storefrontToken,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(mutation),
@@ -1701,6 +1768,15 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       );
 
       const data = (await shopifyRes.json()) as any;
+
+      if (data.errors) {
+        return res.status(400).json({
+          success: false,
+          error: "Storefront GraphQL returned errors",
+          details: data.errors,
+        });
+      }
+
       const result = data.data?.cartLinesAdd;
 
       if (result?.userErrors?.length > 0) {
@@ -1713,8 +1789,8 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       if (!result?.cart) {
         return res.status(400).json({
           success: false,
-          error: "Failed to update cart on Shopify",
-          details: data.errors || data,
+          error: "Failed to update cart on Shopify Storefront API",
+          details: data,
         });
       }
 
