@@ -1511,46 +1511,103 @@ app.all('/api/shopify/order-status', async (req: express.Request, res: express.R
 app.all("/api/shopify/cart", async (req: express.Request, res: express.Response) => {
   try {
     const shop = (req.body?.shop || req.query?.shop) as string;
+    const productName = (
+      req.body?.product_name || 
+      req.query?.product_name || 
+      req.body?.query || 
+      req.query?.query || ""
+    ).toString().trim();
     
-    // Support single variant query params or items array from POST body
-    let variantId = req.query?.variant_id as string;
-    let quantity = (req.query?.quantity as string) || "1";
-    let lineItems = req.body?.items || [];
-
-    if (typeof lineItems === "string") {
-      try { lineItems = JSON.parse(lineItems); } catch (e) { lineItems = []; }
-    }
+    let variantId = (req.body?.variant_id || req.query?.variant_id || "").toString().trim();
+    const quantity = parseInt((req.body?.quantity || req.query?.quantity || "1").toString(), 10) || 1;
 
     if (!shop) {
       return res.status(400).json({ success: false, error: "Missing required parameter: shop" });
     }
 
-    // Format line items into Shopify Permalink syntax
-    let cartPath = "";
+    // 1. If variant_id is not provided directly, look it up by product_name using Shopify GraphQL
+    if (!variantId && productName) {
+      const store = await prisma.shopify_integrations.findUnique({
+        where: { store_url: shop },
+      });
 
-    if (lineItems.length > 0) {
-      cartPath = lineItems
-        .map((item: any) => {
-          const rawId = (item.merchandiseId || item.variant_id || "").toString().replace(/\D/g, "");
-          const qty = item.quantity || 1;
-          return `${rawId}:${qty}`;
-        })
-        .filter((part: string) => part.startsWith(":") === false)
-        .join(",");
-    } else if (variantId) {
-      const rawId = variantId.replace(/\D/g, "");
-      cartPath = `${rawId}:${quantity}`;
+      if (!store || !store.access_token) {
+        return res.status(404).json({ success: false, error: "Store access token not found" });
+      }
+
+      // Query products by title/keyword
+      const graphqlQuery = {
+        query: `
+          query searchProduct($query: String!) {
+            products(first: 1, query: $query) {
+              edges {
+                node {
+                  id
+                  title
+                  variants(first: 5) {
+                    edges {
+                      node {
+                        id
+                        title
+                        price
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `,
+        variables: { query: productName },
+      };
+
+      const shopifyRes = await fetch(
+        `https://${shop}/admin/api/2024-01/graphql.json`,
+        {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": store.access_token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(graphqlQuery),
+        }
+      );
+
+      const searchData = (await shopifyRes.json()) as any;
+      const productEdges = searchData.data?.products?.edges || [];
+
+      if (productEdges.length === 0) {
+        return res.status(200).json({
+          success: false,
+          found: false,
+          message: `No product found matching "${productName}". Please check the product name and try again.`,
+        });
+      }
+
+      const matchedProduct = productEdges[0].node;
+      const matchedVariant = matchedProduct.variants.edges[0]?.node;
+
+      if (!matchedVariant) {
+        return res.status(200).json({
+          success: false,
+          found: false,
+          message: `Product "${matchedProduct.title}" was found, but no available purchasing variants were found.`,
+        });
+      }
+
+      // Extract numeric ID from Global ID (e.g., gid://shopify/ProductVariant/15026211455343)
+      variantId = matchedVariant.id.split("/").pop();
     }
 
-    if (!cartPath) {
+    if (!variantId) {
       return res.status(400).json({
         success: false,
-        error: "At least one product variant ID is required to generate a checkout link.",
+        error: "Please provide a valid product_name or variant_id.",
       });
     }
 
-    // Construct 1-Click Shopify Checkout Link
-    const checkoutUrl = `https://${shop}/cart/${cartPath}`;
+    // 2. Generate 1-Click Shopify Checkout Permalink
+    const checkoutUrl = `https://${shop}/cart/${variantId}:${quantity}`;
 
     return res.status(200).json({
       success: true,
