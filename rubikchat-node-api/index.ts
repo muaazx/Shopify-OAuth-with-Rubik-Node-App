@@ -1532,6 +1532,10 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
   try {
     const shop = (req.body?.shop || req.query?.shop) as string;
 
+    console.log("🛒 [CART API] Incoming request for shop:", shop);
+    console.log("🛒 [CART API] Body payload:", JSON.stringify(req.body || {}));
+    console.log("🛒 [CART API] Query params:", JSON.stringify(req.query || {}));
+
     if (!shop) {
       return res.status(400).json({ success: false, error: "Missing required parameter: shop" });
     }
@@ -1674,6 +1678,7 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       .join(",");
 
     const checkoutUrl = `https://${shop}/cart/${permalinkPath}`;
+    console.log(`🛒 [CART PERMALINK GENERATED] Resolved ${resolvedItems.length} item(s) -> ${checkoutUrl}`);
 
     return res.status(200).json({
       success: true,
