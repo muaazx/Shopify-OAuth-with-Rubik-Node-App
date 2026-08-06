@@ -419,11 +419,14 @@ app.all("/api/shopify/products", async (req: express.Request, res: express.Respo
 
       // Extract unique image per product (Product Featured Image OR Variant Image)
       const imageUrl = node.featuredImage?.url || variant?.image?.url || null;
+      const variantId = variant?.id ? variant.id.split("/").pop() : node.id.split("/").pop();
 
       return {
         title: node.title || "Untitled Product",
         price: variant?.price ? `${variant.price} USD` : "N/A",
-        id: node.id.split("/").pop(),
+        id: variantId, // Variant ID (e.g., 53226628579695) required for cart links
+        variant_id: variantId,
+        product_id: node.id.split("/").pop(),
         status: node.status || "ACTIVE",
         imageUrl: imageUrl, // Ensures unique image per item or null
       };

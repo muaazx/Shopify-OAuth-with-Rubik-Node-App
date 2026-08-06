@@ -178,7 +178,7 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Create Shopify Cart and Checkout URL",
       description:
-        "CRITICAL ACTION: Used to generate a multi-item checkout permalink. You MUST pass ALL accumulated cart items in the items array.",
+        "CRITICAL ACTION: Used to generate a multi-item checkout permalink. You MUST pass ALL accumulated cart items in the `items` array.\nSTRICT VARIANT ID MANDATE (DO NOT USE PRODUCT IDs):\n1. Variant ID vs Product ID Rule: Shopify cart links strictly require the numeric Variant ID (e.g., 53226628579695), NEVER the parent Product ID (e.g., 15026211094895). Passing a Product ID causes a \"Link no longer exists\" error.\n2. Multi-Variant Products Check: Before generating a cart link for any product with options (e.g., Gift Cards with $10, $25, $50, $100 or apparel with Size/Color), you MUST:\n* Ask the user which specific variant option they want if they haven't specified.\n* Ensure the backend resolves the exact variant_id corresponding to that specific selected option.\n\nERROR & AVAILABILITY MANDATES:\n3. Out of Stock / Unavailable Items: If a requested variant is out of stock or unavailable, state: \"Sorry, [Product Name - Variant] is currently unavailable for purchase.\"\n4. Missing Products: If an item cannot be found in the store catalog, state: \"Sorry, we couldn't find [Product Name] in our store.\"\n5. Permalink Format: Construct the final link strictly using validated Variant IDs: [Checkout Here](https://{shop}/cart/{variant_id}:{qty},...).",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/cart",
