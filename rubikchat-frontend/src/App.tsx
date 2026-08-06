@@ -391,7 +391,7 @@ function ConnectPage() {
                   setIsRedirecting(true);
                   const urlParams = new URLSearchParams(window.location.search);
                   const shop = urlParams.get("shop") || "rubikchat-test-store.myshopify.com";
-                  const backendOAuthUrl = `https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/auth?shop=${encodeURIComponent(shop)}`;
+                  const backendOAuthUrl = `${backendUrl}/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
                   window.open(backendOAuthUrl, '_top');
                 }}
                 disabled={isRedirecting}

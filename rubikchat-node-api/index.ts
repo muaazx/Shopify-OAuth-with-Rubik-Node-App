@@ -43,7 +43,7 @@ const shopify = shopifyApi({
 });
 
 // GET / - Root route for Shopify embedded app & health check
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
   const shop = req.query.shop as string;
   const host = req.query.host as string;
   const embedded = req.query.embedded as string;
@@ -56,27 +56,239 @@ app.get('/', (req, res) => {
 
   // 2. Handle embedded shop request (break out of iframe for OAuth)
   if (shop) {
+    try {
+      // Check if integration exists and is connected
+      const integration = await prisma.shopify_integrations.findUnique({
+        where: { store_url: shop },
+      });
+
+      const isConnected = integration && integration.access_token && integration.status !== 'pending';
+
+      if (isConnected) {
+        // Redirect directly to the React frontend dashboard
+        const frontendUrl = `https://shopify-o-auth-with-rubik-node-app.vercel.app/?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host || '')}&embedded=${encodeURIComponent(embedded || '1')}`;
+        return res.redirect(frontendUrl);
+      }
+    } catch (dbError) {
+      console.error('Error checking shopify integration:', dbError);
+    }
+
     const authUrl = `/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
 
-    // If loaded inside Shopify Admin iframe, perform a top-level redirect
+    // If loaded inside Shopify Admin iframe, show connection page with popup launcher
     if (embedded === '1' || req.headers['sec-fetch-dest'] === 'iframe') {
       return res.status(200).send(`
         <!DOCTYPE html>
         <html>
           <head>
-            <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+            <title>RubikChat Agent App</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <style>
+              * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+              }
+              body {
+                font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background-color: #f4f6f8;
+                color: #202223;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 20px;
+              }
+              .card {
+                background: #ffffff;
+                border: 1px solid #e1e3e5;
+                border-radius: 16px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+                max-width: 480px;
+                width: 100%;
+                padding: 40px;
+                text-align: center;
+              }
+              .logo-container {
+                background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                width: 64px;
+                height: 64px;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 24px;
+                box-shadow: 0 8px 16px rgba(79, 70, 229, 0.2);
+              }
+              .logo-icon {
+                font-size: 32px;
+                color: #ffffff;
+              }
+              h1 {
+                font-size: 24px;
+                font-weight: 700;
+                color: #1a1c1e;
+                margin-bottom: 8px;
+              }
+              .subtitle {
+                color: #6d7175;
+                font-size: 15px;
+                margin-bottom: 28px;
+                line-height: 1.5;
+              }
+              .benefits {
+                text-align: left;
+                background-color: #f9fafb;
+                border-radius: 12px;
+                padding: 20px;
+                margin-bottom: 28px;
+                border: 1px solid #f0f1f2;
+              }
+              .benefit-item {
+                display: flex;
+                align-items: flex-start;
+                margin-bottom: 12px;
+                font-size: 14px;
+                color: #4f5660;
+                line-height: 1.4;
+              }
+              .benefit-item:last-child {
+                margin-bottom: 0;
+              }
+              .benefit-icon {
+                margin-right: 12px;
+                font-size: 16px;
+                flex-shrink: 0;
+              }
+              .connect-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
+                color: #ffffff;
+                font-weight: 600;
+                font-size: 16px;
+                padding: 14px 28px;
+                border: none;
+                border-radius: 12px;
+                cursor: pointer;
+                width: 100%;
+                box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+                transition: all 0.2s ease;
+                text-decoration: none;
+              }
+              .connect-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+                background: linear-gradient(90deg, #4338ca 0%, #4f46e5 100%);
+              }
+              .status-text {
+                margin-top: 16px;
+                font-size: 12px;
+                color: #8c9196;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+              }
+              .spinner {
+                display: none;
+                width: 12px;
+                height: 12px;
+                border: 2px solid #8c9196;
+                border-top-color: transparent;
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+              }
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <div class="logo-container">
+                <span class="logo-icon">💬</span>
+              </div>
+              <h1>Connect RubikChat to Shopify</h1>
+              <p class="subtitle">Supercharge your store with RubikChat's intelligent AI support agents and storefront live widget.</p>
+              
+              <div class="benefits">
+                <div class="benefit-item">
+                  <span class="benefit-icon">🤖</span>
+                  <span><strong>Instant AI Replies</strong>: Automate customer inquiries and FAQ responses 24/7.</span>
+                </div>
+                <div class="benefit-item">
+                  <span class="benefit-icon">📦</span>
+                  <span><strong>Product Sync</strong>: Your AI agent stays in sync with your Shopify catalog.</span>
+                </div>
+                <div class="benefit-item">
+                  <span class="benefit-icon">💬</span>
+                  <span><strong>Storefront Widget</strong>: Engage visitors with a custom chat widget.</span>
+                </div>
+              </div>
+
+              <button class="connect-btn" onclick="openOAuth()">
+                Connect with RubikChat
+              </button>
+
+              <div class="status-text" id="status-container">
+                <div class="spinner" id="status-spinner"></div>
+                <span id="status-label">Secured by RubikChat OAuth 2.0</span>
+              </div>
+            </div>
+
             <script>
-              // Break out of Shopify Admin iframe to launch top-level OAuth
-              if (window.top !== window.self) {
-                window.top.location.href = "${authUrl}";
-              } else {
-                window.location.href = "${authUrl}";
+              let popupWindow = null;
+              let pollingInterval = null;
+
+              function openOAuth() {
+                const authUrl = "${authUrl}";
+                
+                // Open Shopify OAuth in a new tab/window
+                popupWindow = window.open(authUrl, '_blank', 'width=800,height=800,left=200,top=100');
+                
+                // Show status spinner and update label
+                document.getElementById('status-spinner').style.display = 'block';
+                document.getElementById('status-label').textContent = 'Waiting for connection to complete...';
+
+                // Start polling to detect successful connection
+                if (!pollingInterval) {
+                  pollingInterval = setInterval(checkConnectionStatus, 3000);
+                }
+              }
+
+              async function checkConnectionStatus() {
+                const shop = "${encodeURIComponent(shop)}";
+                const host = "${encodeURIComponent(host || '')}";
+                const embedded = "${encodeURIComponent(embedded || '1')}";
+                
+                try {
+                  const res = await fetch('/api/status?shop=' + encodeURIComponent(shop));
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data.shopifyConnected && data.rubikchatConnected) {
+                      // Stop polling
+                      clearInterval(pollingInterval);
+                      
+                      // Close the popup window if it's still open
+                      if (popupWindow && !popupWindow.closed) {
+                        popupWindow.close();
+                      }
+                      
+                      document.getElementById('status-label').textContent = 'Store connected! Redirecting...';
+                      
+                      // Redirect the embedded iframe to the Vercel dashboard
+                      window.location.href = "https://shopify-o-auth-with-rubik-node-app.vercel.app/?shop=" + encodeURIComponent(shop) + "&host=" + encodeURIComponent(host) + "&embedded=" + encodeURIComponent(embedded);
+                    }
+                  }
+                } catch (err) {
+                  console.error('Error verifying connection status:', err);
+                }
               }
             </script>
-          </head>
-          <body style="font-family: sans-serif; text-align: center; padding: 40px;">
-            <p>Redirecting to RubikChat Authorization...</p>
-            <a href="${authUrl}" target="_top">Click here if not redirected automatically</a>
           </body>
         </html>
       `);
