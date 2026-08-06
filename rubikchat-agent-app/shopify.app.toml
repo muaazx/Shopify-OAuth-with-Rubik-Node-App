@@ -26,9 +26,8 @@ scopes = "write_products,read_products,read_orders,write_metaobjects,write_metao
 
 [auth]
 redirect_urls = [
-  "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app/auth/callback",
-  "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app/auth/shopify/callback",
-  "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app/api/auth/callback"
+  "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app/api/auth/shopify/callback",
+  "https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app/api/shopify/callback"
 ]
 
 [product.metafields.app.demo_info]
