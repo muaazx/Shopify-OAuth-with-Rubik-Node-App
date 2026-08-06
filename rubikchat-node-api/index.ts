@@ -92,9 +92,9 @@ app.get('/', async (req, res) => {
               border: 1px solid #e1e3e5;
               border-radius: 12px;
               box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-              width: 460px;
-              max-width: 100%;
-              padding: 32px;
+              width: 90%;
+              max-width: 580px;
+              padding: 40px 48px;
             }
             .btn-hover:hover:not(:disabled) {
               opacity: 0.92;
@@ -105,27 +105,27 @@ app.get('/', async (req, res) => {
           <div class="card">
             <!-- Unconnected View -->
             <div id="unconnected-view">
-              <div style="display: flex; align-items: center; gap: 14px; text-align: left; margin-bottom: 20px;">
-                <div style="width: 44px; height: 44px; background: #6366f1; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <div style="display: flex; align-items: center; gap: 16px; text-align: left; margin-bottom: 24px;">
+                <div style="width: 52px; height: 52px; background: #6366f1; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                   </svg>
                 </div>
                 <div>
-                  <h2 style="font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 2px;">RubikChat Setup</h2>
-                  <p style="font-size: 13px; color: #6b7280; margin: 0;">AI Agents for Customer Support &amp; Sales</p>
+                  <h2 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 2px;">RubikChat Setup</h2>
+                  <p style="font-size: 14px; color: #6b7280; margin: 0;">AI Agents for Customer Support &amp; Sales</p>
                 </div>
               </div>
 
-              <div style="border-top: 1px solid #e5e7eb; margin-bottom: 24px;"></div>
+              <div style="border-top: 1px solid #e5e7eb; margin-bottom: 28px;"></div>
 
               <div style="text-align: center;">
-                <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 8px;">Action Required</h3>
-                <p style="font-size: 13px; color: #6b7280; line-height: 1.5; margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 10px;">Action Required</h3>
+                <p style="font-size: 14px; color: #6b7280; line-height: 1.6; max-width: 440px; margin: 0 auto 28px auto;">
                   To enable your AI agents, you need to connect your Shopify store to your RubikChat account securely.
                 </p>
 
-                <button id="connect-btn" class="btn-hover" onclick="openOAuth()" style="width: 100%; background: #6366f1; color: #ffffff; border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                <button id="connect-btn" class="btn-hover" onclick="openOAuth()" style="width: 100%; background: #6366f1; color: #ffffff; border: none; border-radius: 10px; padding: 14px 24px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
                   Connect with RubikChat
                 </button>
               </div>
