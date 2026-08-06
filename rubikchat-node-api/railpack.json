@@ -4,12 +4,11 @@
   },
   "build": {
     "steps": [
-      "npm install",
-      "npx prisma generate",
-      "npx tsc"
+      "npm install --include=dev",
+      "npm run build"
     ]
   },
   "deploy": {
-    "start": "npx prisma generate && node dist/index.js"
+    "start": "node dist/index.js"
   }
 }
