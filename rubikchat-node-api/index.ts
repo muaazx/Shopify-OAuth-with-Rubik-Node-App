@@ -1286,6 +1286,7 @@ app.post('/api/rubikchat/create-agent', async (req, res) => {
             organizationSlug: orgSlug,
             authToken: orgRecord.token,
             storeUrl: shop,
+            agentId: agentId.toString(),
           });
           console.log(`✅ [MCP AUTO-SETUP] MCP Collection created: ${mcpResult.mcpCollectionId}`);
         } else {

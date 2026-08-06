@@ -9,12 +9,14 @@ interface AutoMcpOptions {
   organizationSlug: string;
   authToken: string;
   storeUrl: string; // e.g. "rubikchat-test-store.myshopify.com"
+  agentId?: string;
 }
 
 export async function setupShopifyMcpForAgent({
   organizationSlug,
   authToken,
   storeUrl,
+  agentId,
 }: AutoMcpOptions) {
   const headers = {
     "Content-Type": "application/json",
@@ -238,15 +240,86 @@ export async function setupShopifyMcpForAgent({
   ];
 
   // -------------------------------------------------------------
-  // STEP 3: Execute Step 2 API sequentially for all 3 actions
+  // STEP 3: Execute Step 2 API sequentially for all 3 actions & collect Action IDs
   // -------------------------------------------------------------
+  const createdActionIds: number[] = [];
+
   for (const actionPayload of actionsPayloads) {
-    await axios.post(
-      `${RUBIKCHAT_BASE_URL}/save-mcp-api-configs`,
-      actionPayload,
-      { headers }
-    );
+    try {
+      const response = await axios.post(
+        `${RUBIKCHAT_BASE_URL}/save-mcp-api-configs`,
+        actionPayload,
+        { headers }
+      );
+
+      const rawActionId = response.data?.id || response.data?.data?.id || response.data?.action?.id;
+      if (rawActionId !== undefined && rawActionId !== null) {
+        const numId = Number(rawActionId);
+        createdActionIds.push(numId);
+        console.log(`✅ [MCP AUTO-SETUP] Created action "${actionPayload.name}" with ID: ${numId}`);
+      } else {
+        console.warn(`⚠️ [MCP AUTO-SETUP] Action "${actionPayload.name}" created but no ID in response:`, response.data);
+      }
+    } catch (actionErr: any) {
+      console.error(`❌ [MCP AUTO-SETUP] Failed to create action "${actionPayload.name}":`, actionErr?.response?.data || actionErr.message);
+    }
   }
 
-  return { success: true, mcpCollectionId: mcpApiId };
+  // -------------------------------------------------------------
+  // STEP 4: Import / Link all 3 Action IDs to the Agent Chatbot
+  // -------------------------------------------------------------
+  let targetAgentId = agentId;
+  if (!targetAgentId) {
+    try {
+      const org = await prisma.rubikchat_organizations.findUnique({
+        where: { store_url: storeUrl },
+        include: { agents: { orderBy: { created_at: 'desc' }, take: 1 } },
+      });
+      if (org?.agents?.[0]?.agent_id) {
+        targetAgentId = org.agents[0].agent_id;
+      }
+    } catch (err: any) {
+      console.warn("⚠️ [MCP AUTO-SETUP] Failed to query agent_id from database:", err.message);
+    }
+  }
+
+  let importedResult = null;
+  if (targetAgentId && createdActionIds.length > 0) {
+    console.log(`🔗 [MCP AUTO-SETUP] Linking Action IDs [${createdActionIds.join(', ')}] to Agent ID (${targetAgentId})...`);
+    try {
+      const importResponse = await axios.post(
+        `${RUBIKCHAT_BASE_URL}/chatbots/import-mcp-apis`,
+        {
+          chatbot_id: targetAgentId,
+          mcp_api_ids: createdActionIds,
+        },
+        { headers }
+      );
+      importedResult = importResponse.data;
+      console.log(`✅ [MCP AUTO-SETUP] Successfully imported actions to agent! Response:`, JSON.stringify(importResponse.data));
+
+      try {
+        await prisma.api_logs.create({
+          data: {
+            endpoint: '/chatbots/import-mcp-apis',
+            method: 'POST',
+            status: importResponse.status,
+            request: JSON.stringify({ chatbot_id: targetAgentId, mcp_api_ids: createdActionIds }),
+            response: JSON.stringify(importResponse.data),
+          },
+        });
+      } catch (logErr) { /* ignore logging errors */ }
+    } catch (importErr: any) {
+      console.error(`❌ [MCP AUTO-SETUP] Failed to import actions to chatbot (${targetAgentId}):`, importErr?.response?.data || importErr.message);
+    }
+  } else {
+    console.warn(`⚠️ [MCP AUTO-SETUP] Skipped action import: targetAgentId=${targetAgentId}, actionIdsCount=${createdActionIds.length}`);
+  }
+
+  return {
+    success: true,
+    mcpCollectionId: mcpApiId,
+    actionIds: createdActionIds,
+    importedResult,
+  };
 }
