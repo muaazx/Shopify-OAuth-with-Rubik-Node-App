@@ -45,24 +45,53 @@ const shopify = shopifyApi({
 // GET / - Root route for Shopify embedded app & health check
 app.get('/', (req, res) => {
   const shop = req.query.shop as string;
+  const host = req.query.host as string;
+  const embedded = req.query.embedded as string;
 
-  // If shop parameter exists and app needs OAuth initiation
+  // 1. Set explicit CSP frame ancestors for Shopify Admin
+  res.setHeader(
+    "Content-Security-Policy",
+    "frame-ancestors https://admin.shopify.com https://*.myshopify.com;"
+  );
+
+  // 2. Handle embedded shop request (break out of iframe for OAuth)
   if (shop) {
-    return res.redirect(`/api/auth/shopify?shop=${encodeURIComponent(shop)}`);
+    const authUrl = `/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
+
+    // If loaded inside Shopify Admin iframe, perform a top-level redirect
+    if (embedded === '1' || req.headers['sec-fetch-dest'] === 'iframe') {
+      return res.status(200).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+            <script>
+              // Break out of Shopify Admin iframe to launch top-level OAuth
+              if (window.top !== window.self) {
+                window.top.location.href = "${authUrl}";
+              } else {
+                window.location.href = "${authUrl}";
+              }
+            </script>
+          </head>
+          <body style="font-family: sans-serif; text-align: center; padding: 40px;">
+            <p>Redirecting to RubikChat Authorization...</p>
+            <a href="${authUrl}" target="_top">Click here if not redirected automatically</a>
+          </body>
+        </html>
+      `);
+    }
+
+    // Direct browser hit outside iframe
+    return res.redirect(authUrl);
   }
 
-  // Return a clean 200 OK HTML for the embedded iframe
+  // Fallback response
   return res.status(200).send(`
     <!DOCTYPE html>
     <html>
-      <head>
-        <title>RubikChat Agent App</title>
-        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-      </head>
-      <body style="font-family: system-ui, sans-serif; text-align: center; padding: 40px;">
-        <h2>✅ RubikChat Agent App Connected</h2>
-        <p>Backend service is active.</p>
-      </body>
+      <head><title>RubikChat Agent App</title></head>
+      <body><h3>✅ RubikChat Express Bridge Online</h3></body>
     </html>
   `);
 });
