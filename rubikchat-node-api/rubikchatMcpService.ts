@@ -86,7 +86,7 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Get Shopify Products",
       description:
-        "CRITICAL ACTION: Call this tool when a user asks about available products, pricing, or catalog items. This endpoint returns product 'title', 'price', and 'image_url'. You MUST ALWAYS display the product Title (Name), Price, and Image (formatted as a Markdown image: ![title](image_url)) together in your response for every single item returned.",
+        "CRITICAL ACTION: Call this tool when a user asks about available products, pricing, or catalog items. This endpoint returns an array of items containing 'title', 'price', and 'image_url'.\nSTRICT RESPONSE FORMATTING MANDATE:\nFor EVERY SINGLE PRODUCT returned, you MUST render all three components together in this exact Markdown structure:\n\n1. [product title]\nPrice: [price]\nMANDATORY RULES:\n\nTitle Required: Never omit the product title. It must appear as a bold heading above the image.\nImage Required: You MUST embed the image using Markdown syntax (![title](image_url)). Do not output raw image URLs as plain text or skip them.\nPrice Required: Always include the price directly below the image.\nNo Standalone Prices: Never list prices alone without their associated Title and Image.",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/products",
