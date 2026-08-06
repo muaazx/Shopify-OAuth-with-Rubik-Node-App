@@ -90,78 +90,62 @@ app.get('/', async (req, res) => {
             .card {
               background: #ffffff;
               border: 1px solid #e1e3e5;
-              border-radius: 16px;
+              border-radius: 12px;
               box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-              max-width: 460px;
-              width: 100%;
-              padding: 40px;
-              text-align: center;
+              width: 460px;
+              max-width: 100%;
+              padding: 32px;
             }
-            .logo {
-              background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-              width: 64px; height: 64px;
-              border-radius: 16px;
-              display: flex; align-items: center; justify-content: center;
-              margin: 0 auto 24px;
-              font-size: 30px;
-              box-shadow: 0 8px 16px rgba(79,70,229,0.2);
+            .btn-hover:hover:not(:disabled) {
+              opacity: 0.92;
             }
-            h1 { font-size: 22px; font-weight: 700; color: #1a1c1e; margin-bottom: 8px; }
-            .sub { color: #6d7175; font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
-            .connect-btn {
-              display: block; width: 100%;
-              background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
-              color: #fff; font-weight: 600; font-size: 16px;
-              padding: 14px 28px; border: none; border-radius: 12px;
-              cursor: pointer;
-              box-shadow: 0 4px 10px rgba(79,70,229,0.25);
-              transition: all 0.2s ease;
-            }
-            .connect-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(79,70,229,0.35); }
-            .connect-btn:disabled { opacity: 0.65; cursor: not-allowed; }
-            .connected-badge {
-              display: none;
-              align-items: center; justify-content: center; gap: 8px;
-              background: #f0fdf4; border: 1px solid #86efac;
-              border-radius: 12px; padding: 14px 20px;
-              color: #16a34a; font-weight: 600; font-size: 15px;
-              margin-bottom: 16px;
-            }
-            .disconnect-btn {
-              display: none; width: 100%;
-              background: #fff; color: #dc2626; font-weight: 600; font-size: 14px;
-              padding: 12px 20px; border: 1.5px solid #fca5a5; border-radius: 12px;
-              cursor: pointer; transition: all 0.2s ease;
-            }
-            .disconnect-btn:hover { background: #fef2f2; border-color: #dc2626; }
-            .footer {
-              margin-top: 16px; font-size: 12px; color: #8c9196;
-              display: flex; align-items: center; justify-content: center; gap: 6px;
-            }
-            .spinner {
-              display: none; width: 12px; height: 12px;
-              border: 2px solid #8c9196; border-top-color: transparent;
-              border-radius: 50%; animation: spin 0.8s linear infinite;
-            }
-            @keyframes spin { to { transform: rotate(360deg); } }
           </style>
         </head>
         <body>
           <div class="card">
-            <div class="logo">💬</div>
-            <h1>RubikChat for Shopify</h1>
-            <p class="sub">Connect your store to enable your AI support agent and live chat widget.</p>
+            <!-- Unconnected View -->
+            <div id="unconnected-view">
+              <div style="display: flex; align-items: center; gap: 14px; text-align: left; margin-bottom: 20px;">
+                <div style="width: 44px; height: 44px; background: #6366f1; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h2 style="font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 2px;">RubikChat Setup</h2>
+                  <p style="font-size: 13px; color: #6b7280; margin: 0;">AI Agents for Customer Support &amp; Sales</p>
+                </div>
+              </div>
 
-            <!-- Connected state -->
-            <div class="connected-badge" id="connected-badge">✅ Connected to RubikChat</div>
-            <button class="disconnect-btn" id="disconnect-btn" onclick="disconnect()">Disconnect</button>
+              <div style="border-top: 1px solid #e5e7eb; margin-bottom: 24px;"></div>
 
-            <!-- Connect button -->
-            <button class="connect-btn" id="connect-btn" onclick="openOAuth()">Connect with RubikChat</button>
+              <div style="text-align: center;">
+                <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 8px;">Action Required</h3>
+                <p style="font-size: 13px; color: #6b7280; line-height: 1.5; margin-bottom: 24px;">
+                  To enable your AI agents, you need to connect your Shopify store to your RubikChat account securely.
+                </p>
 
-            <div class="footer">
-              <div class="spinner" id="spinner"></div>
-              <span id="footer-label">Secured by RubikChat OAuth 2.0</span>
+                <button id="connect-btn" class="btn-hover" onclick="openOAuth()" style="width: 100%; background: #6366f1; color: #ffffff; border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                  Connect with RubikChat
+                </button>
+              </div>
+            </div>
+
+            <!-- Connected View -->
+            <div id="connected-view" style="display: none; text-align: center;">
+              <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 30px; box-shadow: 0 8px 16px rgba(79,70,229,0.2);">💬</div>
+              <h1 style="font-size: 22px; font-weight: 700; color: #1a1c1e; margin-bottom: 8px;">RubikChat for Shopify</h1>
+              <p style="color: #6d7175; font-size: 14px; margin-bottom: 24px; line-height: 1.5;">Connect your store to enable your AI support agent and live chat widget.</p>
+
+              <div id="connected-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px 20px; color: #047857; font-weight: 600; font-size: 15px; margin-bottom: 16px;">
+                ✅ Connected to RubikChat
+              </div>
+
+              <button id="disconnect-btn" class="btn-hover" onclick="disconnect()" style="width: 100%; background: #ffffff; color: #ef4444; font-weight: 600; font-size: 14px; padding: 12px; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                Disconnect
+              </button>
+
+              <p style="margin-top: 16px; font-size: 12px; color: #8c9196;">Your store is live with RubikChat.</p>
             </div>
           </div>
 
@@ -172,19 +156,15 @@ app.get('/', async (req, res) => {
             const ALREADY_CONNECTED = ${isConnected};
             let pollingInterval = null;
 
-            // On load: if already connected, show connected state immediately
             if (ALREADY_CONNECTED) showConnected();
 
             function openOAuth() {
-              // Open the Vercel OAuth app in a brand-new browser tab — Shopify Admin stays open
               const url = VERCEL_APP + "/?shop=" + SHOP + "&host=" + HOST + "&embedded=0";
               window.open(url, '_blank');
 
-              // Show polling indicator
-              document.getElementById('spinner').style.display = 'block';
-              document.getElementById('footer-label').textContent = 'Waiting for connection to complete...';
-              document.getElementById('connect-btn').disabled = true;
-              document.getElementById('connect-btn').textContent = 'Connecting...';
+              const btn = document.getElementById('connect-btn');
+              btn.disabled = true;
+              btn.textContent = 'Connecting to RubikChat...';
 
               if (!pollingInterval) {
                 pollingInterval = setInterval(checkStatus, 3000);
@@ -202,15 +182,12 @@ app.get('/', async (req, res) => {
                     showConnected();
                   }
                 }
-              } catch (e) { /* network hiccup, keep polling */ }
+              } catch (e) { /* retry silently */ }
             }
 
             function showConnected() {
-              document.getElementById('connect-btn').style.display = 'none';
-              document.getElementById('connected-badge').style.display = 'flex';
-              document.getElementById('disconnect-btn').style.display = 'block';
-              document.getElementById('spinner').style.display = 'none';
-              document.getElementById('footer-label').textContent = 'Your store is live with RubikChat.';
+              document.getElementById('unconnected-view').style.display = 'none';
+              document.getElementById('connected-view').style.display = 'block';
             }
 
             async function disconnect() {
@@ -222,13 +199,11 @@ app.get('/', async (req, res) => {
                   body: JSON.stringify({ shop: decodeURIComponent(SHOP) })
                 });
                 if (res.ok) {
-                  document.getElementById('connected-badge').style.display = 'none';
-                  document.getElementById('disconnect-btn').style.display = 'none';
+                  document.getElementById('connected-view').style.display = 'none';
+                  document.getElementById('unconnected-view').style.display = 'block';
                   const btn = document.getElementById('connect-btn');
-                  btn.style.display = 'block';
                   btn.disabled = false;
                   btn.textContent = 'Connect with RubikChat';
-                  document.getElementById('footer-label').textContent = 'Secured by RubikChat OAuth 2.0';
                 }
               } catch(e) { alert('Disconnect failed. Please try again.'); }
             }
