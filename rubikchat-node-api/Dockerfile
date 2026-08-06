@@ -11,6 +11,6 @@ COPY . .
 
 RUN npm run build
 
-EXPOSE 8080
+EXPOSE 3000
 
 CMD ["sh", "-c", "npx prisma generate && node dist/index.js"]

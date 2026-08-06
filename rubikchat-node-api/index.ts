@@ -2022,7 +2022,7 @@ app.post("/api/shopify/onboard", async (req: express.Request, res: express.Respo
 });
 
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 app.listen(Number(PORT), "0.0.0.0", () => {
   console.log(`🚀 RubikChat Backend running on 0.0.0.0:${PORT}`);
 });
