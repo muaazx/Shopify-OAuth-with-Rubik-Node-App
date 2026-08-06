@@ -39,7 +39,7 @@ const shopify = shopifyApi({
   apiVersion: ApiVersion.July26,
   scopes: SCOPES, // Set required scopes
   isEmbeddedApp: false,
-  hostName: process.env.HOST?.replace(/https:\/\//, '') || 'localhost:3001', // Update based on ngrok or railway domain
+  hostName: process.env.HOST?.replace(/https:\/\//, '') || 'rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app',
 });
 
 // GET / - Root route for Shopify embedded app & health check
