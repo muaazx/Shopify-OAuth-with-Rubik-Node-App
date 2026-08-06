@@ -141,7 +141,7 @@ app.get('/', async (req, res) => {
                 ✅ Connected to RubikChat
               </div>
 
-              <button id="disconnect-btn" class="btn-hover" onclick="disconnect()" style="width: 100%; background: #ffffff; color: #ef4444; font-weight: 600; font-size: 16px; padding: 14px; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+              <button id="disconnect-btn" class="btn-hover btn-disconnect" onclick="disconnect()" style="width: 100%; background: #ffffff; color: #ef4444; font-weight: 600; font-size: 16px; padding: 14px; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
                 Disconnect
               </button>
 
@@ -191,7 +191,16 @@ app.get('/', async (req, res) => {
             }
 
             async function disconnect() {
-              if (!confirm('Are you sure you want to disconnect RubikChat from your store?')) return;
+              if (!confirm('Are you sure you want to disconnect RubikChat from this store?')) return;
+              
+              const btn = document.getElementById('disconnect-btn') || document.querySelector('.btn-disconnect');
+              if (btn) {
+                btn.innerText = 'Disconnecting...';
+                btn.disabled = true;
+                btn.style.opacity = '0.7';
+                btn.style.cursor = 'not-allowed';
+              }
+
               try {
                 const res = await fetch('/api/shopify/disconnect', {
                   method: 'POST',
@@ -199,13 +208,20 @@ app.get('/', async (req, res) => {
                   body: JSON.stringify({ shop: decodeURIComponent(SHOP) })
                 });
                 if (res.ok) {
-                  document.getElementById('connected-view').style.display = 'none';
-                  document.getElementById('unconnected-view').style.display = 'block';
-                  const btn = document.getElementById('connect-btn');
-                  btn.disabled = false;
-                  btn.textContent = 'Connect with RubikChat';
+                  window.location.reload();
+                } else {
+                  throw new Error('Server returned non-200 status');
                 }
-              } catch(e) { alert('Disconnect failed. Please try again.'); }
+              } catch (err) {
+                console.error('Disconnect failed:', err);
+                if (btn) {
+                  btn.innerText = 'Disconnect';
+                  btn.disabled = false;
+                  btn.style.opacity = '1';
+                  btn.style.cursor = 'pointer';
+                }
+                alert('Failed to disconnect. Please try again.');
+              }
             }
           </script>
         </body>
