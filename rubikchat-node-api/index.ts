@@ -78,9 +78,9 @@ app.get('/', async (req, res) => {
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
-              font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
               background-color: #f4f6f8;
-              color: #202223;
+              color: #111827;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -112,20 +112,20 @@ app.get('/', async (req, res) => {
                   </svg>
                 </div>
                 <div>
-                  <h2 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 2px;">RubikChat Setup</h2>
-                  <p style="font-size: 14px; color: #6b7280; margin: 0;">AI Agents for Customer Support &amp; Sales</p>
+                  <h2 style="font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 2px;">RubikChat Setup</h2>
+                  <p style="font-size: 15px; font-weight: 500; color: #4b5563; margin: 0;">AI Agents for Customer Support &amp; Sales</p>
                 </div>
               </div>
 
               <div style="border-top: 1px solid #e5e7eb; margin-bottom: 28px;"></div>
 
               <div style="text-align: center;">
-                <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 10px;">Action Required</h3>
-                <p style="font-size: 14px; color: #6b7280; line-height: 1.6; max-width: 440px; margin: 0 auto 28px auto;">
+                <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 10px;">Action Required</h3>
+                <p style="font-size: 15px; font-weight: 400; color: #374151; line-height: 1.6; max-width: 440px; margin: 0 auto 28px auto;">
                   To enable your AI agents, you need to connect your Shopify store to your RubikChat account securely.
                 </p>
 
-                <button id="connect-btn" class="btn-hover" onclick="openOAuth()" style="width: 100%; background: #6366f1; color: #ffffff; border: none; border-radius: 10px; padding: 14px 24px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                <button id="connect-btn" class="btn-hover" onclick="openOAuth()" style="width: 100%; background: #6366f1; color: #ffffff; border: none; border-radius: 10px; padding: 14px 24px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
                   Connect with RubikChat
                 </button>
               </div>
@@ -134,18 +134,18 @@ app.get('/', async (req, res) => {
             <!-- Connected View -->
             <div id="connected-view" style="display: none; text-align: center;">
               <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 30px; box-shadow: 0 8px 16px rgba(79,70,229,0.2);">💬</div>
-              <h1 style="font-size: 22px; font-weight: 700; color: #1a1c1e; margin-bottom: 8px;">RubikChat for Shopify</h1>
-              <p style="color: #6d7175; font-size: 14px; margin-bottom: 24px; line-height: 1.5;">Connect your store to enable your AI support agent and live chat widget.</p>
+              <h1 style="font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 8px;">RubikChat for Shopify</h1>
+              <p style="font-size: 15px; font-weight: 500; color: #4b5563; margin-bottom: 24px; line-height: 1.5;">Connect your store to enable your AI support agent and live chat widget.</p>
 
-              <div id="connected-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px 20px; color: #047857; font-weight: 600; font-size: 15px; margin-bottom: 16px;">
+              <div id="connected-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px; color: #047857; font-weight: 600; font-size: 16px; margin-bottom: 16px;">
                 ✅ Connected to RubikChat
               </div>
 
-              <button id="disconnect-btn" class="btn-hover" onclick="disconnect()" style="width: 100%; background: #ffffff; color: #ef4444; font-weight: 600; font-size: 14px; padding: 12px; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+              <button id="disconnect-btn" class="btn-hover" onclick="disconnect()" style="width: 100%; background: #ffffff; color: #ef4444; font-weight: 600; font-size: 16px; padding: 14px; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
                 Disconnect
               </button>
 
-              <p style="margin-top: 16px; font-size: 12px; color: #8c9196;">Your store is live with RubikChat.</p>
+              <p style="margin-top: 16px; font-size: 13px; color: #6b7280; font-weight: 500;">Your store is live with RubikChat.</p>
             </div>
           </div>
 
