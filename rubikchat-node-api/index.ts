@@ -25,6 +25,12 @@ app.options(/(.*)/, cors());
 app.use(cookieParser());
 app.use(express.json());
 
+// Allow framing from Shopify iframe
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
+  next();
+});
+
 const SCOPES = process.env.SHOPIFY_SCOPES ? process.env.SHOPIFY_SCOPES.split(',') : ['read_products', 'write_products', 'write_script_tags', 'read_script_tags', 'read_orders'];
 
 const shopify = shopifyApi({
@@ -34,6 +40,31 @@ const shopify = shopifyApi({
   scopes: SCOPES, // Set required scopes
   isEmbeddedApp: false,
   hostName: process.env.HOST?.replace(/https:\/\//, '') || 'localhost:3001', // Update based on ngrok or railway domain
+});
+
+// GET / - Root route for Shopify embedded app & health check
+app.get('/', (req, res) => {
+  const shop = req.query.shop as string;
+
+  // If shop parameter exists and app needs OAuth initiation
+  if (shop) {
+    return res.redirect(`/api/auth/shopify?shop=${encodeURIComponent(shop)}`);
+  }
+
+  // Return a clean 200 OK HTML for the embedded iframe
+  return res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>RubikChat Agent App</title>
+        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+      </head>
+      <body style="font-family: system-ui, sans-serif; text-align: center; padding: 40px;">
+        <h2>✅ RubikChat Agent App Connected</h2>
+        <p>Backend service is active.</p>
+      </body>
+    </html>
+  `);
 });
 
 // GET /api/auth/shopify & /api/shopify/auth
