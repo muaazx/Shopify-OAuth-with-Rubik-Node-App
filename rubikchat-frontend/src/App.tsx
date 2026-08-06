@@ -392,7 +392,8 @@ function ConnectPage() {
                   const urlParams = new URLSearchParams(window.location.search);
                   const shop = urlParams.get("shop") || "rubikchat-test-store.myshopify.com";
                   const backendOAuthUrl = `${backendUrl}/api/auth/shopify?shop=${encodeURIComponent(shop)}`;
-                  window.open(backendOAuthUrl, '_top');
+                  window.open(backendOAuthUrl, '_blank');
+                  setTimeout(() => setIsRedirecting(false), 6000);
                 }}
                 disabled={isRedirecting}
                 className="inline-flex items-center space-x-2 bg-[#2c6ecb] hover:bg-[#1f5199] disabled:bg-[#85b1e8] text-white font-medium px-6 py-2.5 rounded-md shadow-sm transition-colors disabled:cursor-not-allowed"
