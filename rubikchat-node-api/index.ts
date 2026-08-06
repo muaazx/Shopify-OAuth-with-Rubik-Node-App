@@ -2022,7 +2022,7 @@ app.post("/api/shopify/onboard", async (req: express.Request, res: express.Respo
 });
 
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`RubikChat Phase 3 Node API is running on port ${PORT}`);
+const PORT = process.env.PORT || 8080;
+app.listen(Number(PORT), "0.0.0.0", () => {
+  console.log(`🚀 RubikChat Backend running on 0.0.0.0:${PORT}`);
 });
