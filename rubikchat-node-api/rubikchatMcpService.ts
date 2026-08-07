@@ -221,14 +221,14 @@ export async function setupShopifyMcpForAgent({
       name: "Create Shopify Cart and Checkout URL",
       description:
         "CRITICAL ACTION: Generates a Shopify checkout permalink.\n\n" +
-        "PARAMETER REQUIREMENTS:\n" +
-        "product_name: Pass ONLY the main product title (e.g., \"Gift Card\" or \"Selling Plans Ski Wax\").\n" +
-        "variant_title: MANDATORY for products with options. You MUST pass the specific variant choice selected by the user (e.g., \"$25\", \"$50\", \"$100\", \"Special Selling Plans Ski Wax\", \"Ice\").\n" +
+        "PARAMETER REQUIREMENTS:\n\n" +
+        "product_name: Pass ONLY the main product title (e.g., \"Gift Card\" or \"Selling Plans Ski Wax\").\n\n" +
+        "variant_title: MANDATORY for products with options. You MUST pass the specific variant choice selected by the user (e.g., \"$25\", \"$50\", \"$100\", \"Special Selling Plans Ski Wax\", \"Ice\").\n\n" +
         "quantity: The number of items requested (default: 1).\n\n" +
-        "STRICT EXAMPLES:\n" +
-        "User asks for $50 Gift Card:\n" +
+        "STRICT EXAMPLES:\n\n" +
+        "User asks for $50 Gift Card:\n\n" +
         "items: [{\"product_name\": \"Gift Card\", \"variant_title\": \"$50\", \"quantity\": 1}]\n\n" +
-        "User asks for 3 of the $100 Gift Card:\n" +
+        "User asks for 3 of the $100 Gift Card:\n\n" +
         "items: [{\"product_name\": \"Gift Card\", \"variant_title\": \"$100\", \"quantity\": 3}]\n\n" +
         "FORBIDDEN: Never send {\"product_name\": \"Gift Card\"} without variant_title when options ($10, $25, $50, $100) exist.",
       method: "POST",
