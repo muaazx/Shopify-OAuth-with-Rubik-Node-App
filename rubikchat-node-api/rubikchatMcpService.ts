@@ -220,11 +220,11 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Create Shopify Cart and Checkout URL",
       description:
-        "CRITICAL ACTION: Call this tool to generate a Shopify cart checkout permalink.\n" +
-        "VARIANT SELECTION MANDATES:\n" +
-        "1. Pass Selected Variant: When adding products that have variants (e.g., Gift Cards with $10, $25, $50, $100), you MUST include the user's selected choice in `variant_title` (e.g. `\"$25\"`) OR `variant_id` (e.g. `\"53226628612463\"`).\n" +
-        "2. Do NOT pass generic product names alone: Never call this tool with just `{\"product_name\": \"Gift Card\"}` if the user requested a specific denomination like $25 or $50.\n" +
-        "3. Multiple Items: Combine all valid, selected items in the permalink URL structure: https://{shop}/cart/{variant_id_1}:{qty_1},{variant_id_2}:{qty_2}.",
+        "CRITICAL ACTION: Used to generate a multi-item checkout permalink.\n" +
+        "STRICT VARIANT SELECTION MANDATES:\n" +
+        "1. ALWAYS Pass `variant_title`: For ANY product that has options/variants (e.g., Gift Cards with $10, $25, $50, $100 denominations), you MUST pass the user's chosen option in the `variant_title` field (e.g., variant_title: \"$50\").\n" +
+        "2. Context Memory: If the user previously specified an option (e.g. \"$50 Gift Card\") and then simply confirms with \"yes\" or \"order this\", you MUST remember that choice and pass variant_title: \"$50\".\n" +
+        "3. FORBIDDEN: NEVER send {\"product_name\": \"Gift Card\"} alone without variant_title or variant_id for multi-option products.",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/cart",
@@ -245,7 +245,7 @@ export async function setupShopifyMcpForAgent({
           name: "items",
           type: "array",
           description:
-            "Array of objects containing all items in the cart session. Format: [{'product_name': 'Title', 'variant_title': '$25', 'quantity': 1}]",
+            "Array of objects containing all items in the cart session. Format: [{'product_name': 'Gift Card', 'variant_title': '$50', 'quantity': 1}]",
           isRequired: true,
           isNullable: false,
           default: "",
@@ -253,6 +253,7 @@ export async function setupShopifyMcpForAgent({
       ],
       json_schema: {
         type: "object",
+        required: ["shop", "items"],
         properties: {
           shop: {
             description: "The myshopify store domain",
@@ -261,32 +262,27 @@ export async function setupShopifyMcpForAgent({
           },
           items: {
             type: "array",
-            description: "Array of objects containing all items in the cart session.",
             items: {
               type: "object",
+              required: ["product_name", "quantity"],
               properties: {
                 product_name: {
                   type: "string",
-                  description: "Exact title of the product",
+                  description: "The name of the product (e.g. 'Gift Card'). Do not put variant names here if variant_title is used.",
                 },
                 variant_title: {
                   type: "string",
-                  description: "The specific variant option title selected by the user (e.g., '$25', 'Medium', 'Red'). Required for multi-variant products.",
+                  description: "MANDATORY for multi-variant products! The selected variant option name (e.g. '$50', '$25', '$100', 'Large', 'Red').",
                 },
                 variant_id: {
                   type: "string",
-                  description: "The numeric Shopify variant ID if already known (e.g., '53226628612463'). If provided, variant_title lookup is skipped.",
+                  description: "Specific numeric Shopify variant ID if known (e.g. '53226628645231').",
                 },
-                quantity: {
-                  type: "number",
-                  description: "Quantity to add (default 1)",
-                },
+                quantity: { type: "number" },
               },
-              required: ["product_name"],
             },
           },
         },
-        required: ["shop", "items"],
       },
       memory_variables: [],
       response_rules: [],
