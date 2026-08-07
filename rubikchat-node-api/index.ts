@@ -1857,6 +1857,7 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       let rawVariantId = (item.variant_id || item.variantId || item.merchandiseId || "").toString().trim();
       const itemQty = parseInt((item.quantity || "1").toString(), 10) || 1;
       const itemProductName = (item.product_name || item.title || item.name || "").toString().trim();
+      const itemVariantTitle = (item.variant_title || item.variant || item.option || "").toString().trim();
 
       if (rawVariantId) {
         const cleanId = rawVariantId.replace(/\D/g, "");
@@ -1883,10 +1884,11 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
                   node {
                     id
                     title
-                    variants(first: 1) {
+                    variants(first: 250) {
                       edges {
                         node {
                           id
+                          title
                         }
                       }
                     }
@@ -1914,14 +1916,28 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
         const productEdges = searchData.data?.products?.edges || [];
 
         if (productEdges.length > 0) {
-          const matchedVariant = productEdges[0].node.variants.edges[0]?.node;
+          const productNode = productEdges[0].node;
+          const allVariants = productNode.variants?.edges || [];
+
+          // Match by variant title if provided, otherwise fall back to first variant
+          let matchedVariant = null;
+          if (itemVariantTitle && allVariants.length > 1) {
+            matchedVariant = allVariants.find((vEdge: any) =>
+              vEdge.node.title.toLowerCase() === itemVariantTitle.toLowerCase()
+            )?.node;
+          }
+          // Fallback to first variant if no title match found
+          if (!matchedVariant) {
+            matchedVariant = allVariants[0]?.node;
+          }
+
           if (matchedVariant) {
             const cleanId = matchedVariant.id.split("/").pop();
             if (cleanId) {
               resolvedItems.push({
                 variant_id: cleanId,
                 quantity: itemQty,
-                title: productEdges[0].node.title,
+                title: `${productNode.title}${matchedVariant.title !== "Default Title" ? ` - ${matchedVariant.title}` : ""}`,
               });
             }
           }

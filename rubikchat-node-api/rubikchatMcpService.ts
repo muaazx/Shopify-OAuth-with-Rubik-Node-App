@@ -88,17 +88,21 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Get Shopify Products",
       description:
-        "CRITICAL ACTION: Call this tool when a user asks about available products, catalog items, pricing, or product variants/options (e.g., sizes, colors, denominations).\n" +
-        "MANDATORY VARIANT RENDERING RULES:\n" +
-        "1. Check `variants` Array: For every product returned, you MUST inspect the `variants` array inside the response payload.\n" +
-        "2. List All Variants: If a product has multiple variants (e.g., Gift Card denominations like $10, $25, $50, $100 or T-Shirt Sizes/Colors), you MUST list EVERY single variant option along with its price in your response.\n" +
-        "3. Never Output Only First Variant: Do NOT default to showing only the first item in the variants array if multiple variants exist.\n\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "### **[Product Title]**\n\n\n" +
-        "Available Variants / Options:\n" +
-        "* [Variant Title 1] - [Price 1]\n" +
-        "* [Variant Title 2] - [Price 2]\n" +
-        "* [Variant Title 3] - [Price 3]",
+        "CRITICAL ACTION: Call this tool whenever a user asks about available products, store catalog, pricing, or product variants/options (e.g., sizes, colors, gift card denominations).\n\n" +
+        "MANDATORY VARIANT & DISPLAY RULES:\n\n" +
+        "Inspect variants Array: For every product in the tool response, you MUST inspect the variants array.\n\n" +
+        "Multi-Variant Products: If variants contains more than 1 item OR has custom option titles (e.g., \"$10\", \"$25\", \"Ice\", \"Dawn\", \"Small\", \"Red\"):\n" +
+        "You MUST list EVERY single variant option along with its price in a bulleted list.\n" +
+        "NEVER summarize, truncate, or display only the first variant.\n\n" +
+        "Single-Variant Products: If the product has only 1 variant named \"Default Title\", simply display the base product price.\n\n" +
+        "No Assumption Policy: Never say \"I don't have variant information\" if the variants array is present in the response data.\n\n" +
+        "REQUIRED RESPONSE FORMAT:\n\n" +
+        "[Product Title]\n" +
+        "Price: [Base Price]\n" +
+        "Available Options:\n" +
+        "* [Variant Title 1] — [Price 1]\n" +
+        "* [Variant Title 2] — [Price 2]\n" +
+        "* [Variant Title 3] — [Price 3]",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/products",
@@ -216,7 +220,11 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Create Shopify Cart and Checkout URL",
       description:
-        "CRITICAL ACTION: Used to generate a multi-item checkout permalink. You MUST pass ALL accumulated cart items in the `items` array.\nSTRICT VARIANT ID MANDATE (DO NOT USE PRODUCT IDs):\n1. Variant ID vs Product ID Rule: Shopify cart links strictly require the numeric Variant ID (e.g., 53226628579695), NEVER the parent Product ID (e.g., 15026211094895). Passing a Product ID causes a \"Link no longer exists\" error.\n2. Multi-Variant Products Check: Before generating a cart link for any product with options (e.g., Gift Cards with $10, $25, $50, $100 or apparel with Size/Color), you MUST:\n* Ask the user which specific variant option they want if they haven't specified.\n* Ensure the backend resolves the exact variant_id corresponding to that specific selected option.\n\nERROR & AVAILABILITY MANDATES:\n3. Out of Stock / Unavailable Items: If a requested variant is out of stock or unavailable, state: \"Sorry, [Product Name - Variant] is currently unavailable for purchase.\"\n4. Missing Products: If an item cannot be found in the store catalog, state: \"Sorry, we couldn't find [Product Name] in our store.\"\n5. Permalink Format: Construct the final link strictly using validated Variant IDs: [Checkout Here](https://{shop}/cart/{variant_id}:{qty},...).",
+        "CRITICAL ACTION: Used to generate a multi-item checkout permalink. You MUST pass ALL accumulated cart items in the `items` array.\n\n" +
+        "STRICT VARIANT MATCHING MANDATES:\n\n" +
+        "Do NOT Default to First Variant: If a product has variants (e.g. $10, $25, $50, $100 or Small/Medium/Large) and the user requested a specific one, you MUST explicitly pass the chosen variant title or its exact variant_id (e.g., 53226628612463 for $25).\n\n" +
+        "Never Pass Parent Product ID: Always use the numeric variant_id for the specific option selected.\n\n" +
+        "Multiple Items: Combine all valid, selected items in the permalink URL structure: https://{shop}/cart/{variant_id_1}:{qty_1},{variant_id_2}:{qty_2}.",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/cart",
@@ -237,7 +245,7 @@ export async function setupShopifyMcpForAgent({
           name: "items",
           type: "array",
           description:
-            "Array of objects containing all items in the cart session. Format: [{'product_name': 'Title', 'quantity': 1}]",
+            "Array of objects containing all items in the cart session. Format: [{'product_name': 'Title', 'variant_title': '$25', 'quantity': 1}]",
           isRequired: true,
           isNullable: false,
           default: "",
@@ -260,6 +268,14 @@ export async function setupShopifyMcpForAgent({
                 product_name: {
                   type: "string",
                   description: "Exact title of the product",
+                },
+                variant_title: {
+                  type: "string",
+                  description: "The specific variant option title selected by the user (e.g., '$25', 'Medium', 'Red'). Required for multi-variant products.",
+                },
+                variant_id: {
+                  type: "string",
+                  description: "The numeric Shopify variant ID if already known (e.g., '53226628612463'). If provided, variant_title lookup is skipped.",
                 },
                 quantity: {
                   type: "number",
