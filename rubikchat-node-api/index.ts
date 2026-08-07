@@ -1857,7 +1857,26 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
       let rawVariantId = (item.variant_id || item.variantId || item.merchandiseId || "").toString().trim();
       const itemQty = parseInt((item.quantity || "1").toString(), 10) || 1;
       const itemProductName = (item.product_name || item.title || item.name || "").toString().trim();
-      const itemVariantTitle = (item.variant_title || item.variant || item.option || "").toString().trim();
+      let itemVariantTitle = (item.variant_title || item.variant || item.option || "").toString().trim();
+
+      // Smart fallback: try to extract variant from product_name if not explicitly provided
+      // Handles cases like "Gift Card - $25", "Gift Card $25", "Gift Card ($25)"
+      if (!itemVariantTitle && itemProductName) {
+        const dashMatch = itemProductName.match(/\s*[-–—]\s*(.+)$/);
+        if (dashMatch) {
+          itemVariantTitle = dashMatch[1].trim();
+        } else {
+          const parenMatch = itemProductName.match(/\(([^)]+)\)\s*$/);
+          if (parenMatch) {
+            itemVariantTitle = parenMatch[1].trim();
+          } else {
+            const priceMatch = itemProductName.match(/\s+(\$\d+(?:\.\d{2})?)\s*$/);
+            if (priceMatch) {
+              itemVariantTitle = priceMatch[1].trim();
+            }
+          }
+        }
+      }
 
       if (rawVariantId) {
         const cleanId = rawVariantId.replace(/\D/g, "");
@@ -1867,7 +1886,12 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
         }
       }
 
-      if (itemProductName) {
+      // Derive the clean product search name (strip variant suffix if we parsed it)
+      const searchProductName = itemVariantTitle
+        ? itemProductName.replace(/\s*[-–—(]\s*\$?\d.*$/, "").trim() || itemProductName
+        : itemProductName;
+
+      if (searchProductName) {
         const token = await getStoreToken();
         if (!token) {
           return res.status(404).json({
@@ -1897,7 +1921,7 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
               }
             }
           `,
-          variables: { query: itemProductName },
+          variables: { query: searchProductName },
         };
 
         const shopifyRes = await fetch(
@@ -1919,14 +1943,26 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
           const productNode = productEdges[0].node;
           const allVariants = productNode.variants?.edges || [];
 
-          // Match by variant title if provided, otherwise fall back to first variant
+          // Match by variant title if provided
           let matchedVariant = null;
           if (itemVariantTitle && allVariants.length > 1) {
+            const normalize = (s: string) => s.toLowerCase().replace(/[$\s]/g, "");
+            const searchNorm = normalize(itemVariantTitle);
+
+            // Exact normalized match first
             matchedVariant = allVariants.find((vEdge: any) =>
-              vEdge.node.title.toLowerCase() === itemVariantTitle.toLowerCase()
+              normalize(vEdge.node.title) === searchNorm
             )?.node;
+
+            // Fuzzy: check if either contains the other
+            if (!matchedVariant) {
+              matchedVariant = allVariants.find((vEdge: any) => {
+                const vNorm = normalize(vEdge.node.title);
+                return vNorm.includes(searchNorm) || searchNorm.includes(vNorm);
+              })?.node;
+            }
           }
-          // Fallback to first variant if no title match found
+          // Fallback to first variant only if no variant title was requested
           if (!matchedVariant) {
             matchedVariant = allVariants[0]?.node;
           }

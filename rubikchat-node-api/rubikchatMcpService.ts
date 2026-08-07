@@ -220,11 +220,11 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Create Shopify Cart and Checkout URL",
       description:
-        "CRITICAL ACTION: Used to generate a multi-item checkout permalink. You MUST pass ALL accumulated cart items in the `items` array.\n\n" +
-        "STRICT VARIANT MATCHING MANDATES:\n\n" +
-        "Do NOT Default to First Variant: If a product has variants (e.g. $10, $25, $50, $100 or Small/Medium/Large) and the user requested a specific one, you MUST explicitly pass the chosen variant title or its exact variant_id (e.g., 53226628612463 for $25).\n\n" +
-        "Never Pass Parent Product ID: Always use the numeric variant_id for the specific option selected.\n\n" +
-        "Multiple Items: Combine all valid, selected items in the permalink URL structure: https://{shop}/cart/{variant_id_1}:{qty_1},{variant_id_2}:{qty_2}.",
+        "CRITICAL ACTION: Call this tool to generate a Shopify cart checkout permalink.\n" +
+        "VARIANT SELECTION MANDATES:\n" +
+        "1. Pass Selected Variant: When adding products that have variants (e.g., Gift Cards with $10, $25, $50, $100), you MUST include the user's selected choice in `variant_title` (e.g. `\"$25\"`) OR `variant_id` (e.g. `\"53226628612463\"`).\n" +
+        "2. Do NOT pass generic product names alone: Never call this tool with just `{\"product_name\": \"Gift Card\"}` if the user requested a specific denomination like $25 or $50.\n" +
+        "3. Multiple Items: Combine all valid, selected items in the permalink URL structure: https://{shop}/cart/{variant_id_1}:{qty_1},{variant_id_2}:{qty_2}.",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/cart",
