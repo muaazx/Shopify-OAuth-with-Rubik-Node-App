@@ -88,7 +88,17 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Get Shopify Products",
       description:
-        "CRITICAL ACTION: Call this tool when a user asks about available products, pricing, or catalog items. This endpoint returns an array of items containing 'title', 'price', and 'image_url'.\nSTRICT RESPONSE FORMATTING MANDATE:\nFor EVERY SINGLE PRODUCT returned, you MUST render all three components together in this exact Markdown structure:\n\n1. [product title]\nPrice: [price]\nMANDATORY RULES:\n\nTitle Required: Never omit the product title. It must appear as a bold heading above the image.\nImage Required: You MUST embed the image using Markdown syntax (![title](image_url)). Do not output raw image URLs as plain text or skip them.\nPrice Required: Always include the price directly below the image.\nNo Standalone Prices: Never list prices alone without their associated Title and Image.",
+        "CRITICAL ACTION: Call this tool when a user asks about available products, catalog items, pricing, or product variants/options (e.g., sizes, colors, denominations).\n" +
+        "MANDATORY VARIANT RENDERING RULES:\n" +
+        "1. Check `variants` Array: For every product returned, you MUST inspect the `variants` array inside the response payload.\n" +
+        "2. List All Variants: If a product has multiple variants (e.g., Gift Card denominations like $10, $25, $50, $100 or T-Shirt Sizes/Colors), you MUST list EVERY single variant option along with its price in your response.\n" +
+        "3. Never Output Only First Variant: Do NOT default to showing only the first item in the variants array if multiple variants exist.\n\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "### **[Product Title]**\n\n\n" +
+        "Available Variants / Options:\n" +
+        "* [Variant Title 1] - [Price 1]\n" +
+        "* [Variant Title 2] - [Price 2]\n" +
+        "* [Variant Title 3] - [Price 3]",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/products",
@@ -115,6 +125,34 @@ export async function setupShopifyMcpForAgent({
           },
         },
         required: ["shop"],
+      },
+      response: {
+        type: "object",
+        properties: {
+          products: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["title", "price", "image_url", "variants"],
+              properties: {
+                title: { type: "string" },
+                price: { type: "string" },
+                image_url: { type: "string" },
+                variants: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string", description: "e.g., $10, $25, $50, $100" },
+                      price: { type: "string" },
+                      variant_id: { type: "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       },
       memory_variables: [],
       response_rules: [],

@@ -366,7 +366,7 @@ app.all("/api/shopify/products", async (req: express.Request, res: express.Respo
       });
     }
 
-    // Updated GraphQL Query: Fetch unique featured image per product
+    // Updated GraphQL Query: Fetch product info and all variants
     const graphqlQuery = {
       query: `
         query getProducts {
@@ -379,10 +379,11 @@ app.all("/api/shopify/products", async (req: express.Request, res: express.Respo
                 featuredImage {
                   url
                 }
-                variants(first: 1) {
+                variants(first: 250) {
                   edges {
                     node {
                       id
+                      title
                       price
                       image {
                         url
@@ -412,23 +413,42 @@ app.all("/api/shopify/products", async (req: express.Request, res: express.Respo
     const data = (await shopifyRes.json()) as any;
     const productEdges = data.data?.products?.edges || [];
 
-    // Map each item strictly to its OWN image
+    // Map each product and include all variants in response payload
     const formattedProducts = productEdges.map((edge: any) => {
       const node = edge.node;
-      const variant = node.variants?.edges[0]?.node;
+      const variantEdges = node.variants?.edges || [];
+      const firstVariant = variantEdges[0]?.node;
 
       // Extract unique image per product (Product Featured Image OR Variant Image)
-      const imageUrl = node.featuredImage?.url || variant?.image?.url || null;
-      const variantId = variant?.id ? variant.id.split("/").pop() : node.id.split("/").pop();
+      const imageUrl = node.featuredImage?.url || firstVariant?.image?.url || null;
+      const defaultVariantId = firstVariant?.id ? firstVariant.id.split("/").pop() : node.id.split("/").pop();
+
+      const variants = variantEdges.map((vEdge: any) => {
+        const v = vEdge.node;
+        const rawPrice = parseFloat(v.price);
+        const formattedPrice = isNaN(rawPrice) ? (v.price || "N/A") : `$${rawPrice.toFixed(2)} USD`;
+        const vId = v.id ? v.id.split("/").pop() : defaultVariantId;
+        return {
+          title: v.title || "Default Title",
+          price: formattedPrice,
+          variant_id: vId,
+          id: vId,
+          shopify_variant_id: vId,
+        };
+      });
+
+      const defaultPrice = firstVariant?.price ? `$${parseFloat(firstVariant.price).toFixed(2)} USD` : "N/A";
 
       return {
         title: node.title || "Untitled Product",
-        price: variant?.price ? `${variant.price} USD` : "N/A",
-        id: variantId, // Variant ID (e.g., 53226628579695) required for cart links
-        variant_id: variantId,
+        price: defaultPrice,
+        image_url: imageUrl,
+        imageUrl: imageUrl, // for backwards compatibility
+        id: defaultVariantId, // Variant ID required for cart links
+        variant_id: defaultVariantId,
         product_id: node.id.split("/").pop(),
         status: node.status || "ACTIVE",
-        imageUrl: imageUrl, // Ensures unique image per item or null
+        variants: variants,
       };
     });
 
@@ -1426,26 +1446,33 @@ const handleMcpProducts = async (req: express.Request, res: express.Response) =>
     const rawProducts = shopifyResponse.body.products || [];
 
     // 4. Transform into clean, structured data for AI consumption
-    const products = rawProducts.map((p: any) => ({
-      id: p.id,
-      title: p.title,
-      product_name: p.title,
-      name: p.title,
-      vendor: p.vendor,
-      product_type: p.product_type,
-      tags: p.tags,
-      price: p.variants?.[0]?.price ? `${p.variants[0].price}` : "0.00",
-      imageUrl: p.image?.src || p.images?.[0]?.src || null,
-      description: (p.body_html || '').replace(/<[^>]*>?/gm, '').trim(),
-      variants: (p.variants || []).map((v: any) => ({
-        id: v.id,
-        title: v.title,
-        price: v.price,
-        sku: v.sku,
-        in_stock: (v.inventory_quantity ?? 0) > 0,
-        inventory_quantity: v.inventory_quantity
-      }))
-    }));
+    const products = rawProducts.map((p: any) => {
+      const firstVariant = p.variants?.[0];
+      const imageUrl = p.image?.src || p.images?.[0]?.src || null;
+      return {
+        id: p.id,
+        title: p.title,
+        product_name: p.title,
+        name: p.title,
+        vendor: p.vendor,
+        product_type: p.product_type,
+        tags: p.tags,
+        price: firstVariant?.price ? `$${parseFloat(firstVariant.price).toFixed(2)} USD` : "0.00",
+        image_url: imageUrl,
+        imageUrl: imageUrl,
+        description: (p.body_html || '').replace(/<[^>]*>?/gm, '').trim(),
+        variants: (p.variants || []).map((v: any) => ({
+          id: String(v.id),
+          variant_id: String(v.id),
+          shopify_variant_id: String(v.id),
+          title: v.title,
+          price: `$${parseFloat(v.price).toFixed(2)} USD`,
+          sku: v.sku,
+          in_stock: (v.inventory_quantity ?? 0) > 0,
+          inventory_quantity: v.inventory_quantity
+        }))
+      };
+    });
 
     // 5. Return success response
     return res.status(200).json({
