@@ -150,6 +150,20 @@ export default function FunctionsPage() {
     }
   };
 
+  const getDisplayDescription = (name: string) => {
+    const nameLower = name.toLowerCase();
+    if (nameLower.includes('product')) {
+      return "Allows AI agent to browse store catalog, pricing, and product variants.";
+    }
+    if (nameLower.includes('order')) {
+      return "Allows AI agent to look up order tracking, status, and fulfillment state.";
+    }
+    if (nameLower.includes('cart') || nameLower.includes('checkout')) {
+      return "Allows AI agent to generate multi-item cart checkout links for customers.";
+    }
+    return "";
+  };
+
   const handleCreateAgent = async () => {
     if (!shop) return;
     
@@ -242,7 +256,7 @@ export default function FunctionsPage() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900">Enable Functions</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 font-sans">Manage Agent Functions</h1>
               <p className="text-slate-500 mt-1">Select the functions you want to enable.</p>
             </div>
           </div>
@@ -260,13 +274,13 @@ export default function FunctionsPage() {
           </div>
         </div>
 
-        <div className="max-w-md">
-          {/* Create Agent Card — only show create button if agent not yet created */}
-          <div className={`bg-white border ${createAgentSuccess ? 'border-emerald-500' : 'border-slate-200 hover:border-slate-300'} rounded-2xl shadow-sm p-6 transition-all duration-300 group`}>
-            {!createAgentSuccess && (
-              <>
+        <div className="w-full">
+          {!createAgentSuccess ? (
+            <div className="max-w-md mx-auto">
+              {/* Create Agent Card — only show create button if agent not yet created */}
+              <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl shadow-sm p-6 transition-all duration-300 group">
                 <div className="flex items-start justify-between mb-6">
-                  <div className={`p-3 rounded-2xl border bg-slate-50 border-slate-100`}>
+                  <div className="p-3 rounded-2xl border bg-slate-50 border-slate-100">
                     {isCreatingAgent ? (
                       <Loader2 className="w-6 h-6 text-slate-900 animate-spin" />
                     ) : (
@@ -283,7 +297,7 @@ export default function FunctionsPage() {
                 <button
                   onClick={handleCreateAgent}
                   disabled={isCreatingAgent}
-                  className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all bg-slate-900 hover:bg-black text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed mb-4"
+                  className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all bg-slate-900 hover:bg-black text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
                 >
                   {isCreatingAgent ? (
                     <>
@@ -297,40 +311,48 @@ export default function FunctionsPage() {
                     </>
                   )}
                 </button>
-              </>
-            )}
-
-            {/* Widget Embed Toggle Switch */}
-            <div className={`flex items-center justify-between ${!createAgentSuccess ? 'border-t border-slate-100 pt-4 mt-2' : ''}`}>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-slate-900">RubikChat Widget</span>
-                <span className="text-xs text-slate-500 mt-0.5">Show floating AI widget on storefront</span>
               </div>
-              <button
-                onClick={handleToggleWidget}
-                disabled={!createAgentSuccess || isEmbedding}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  !createAgentSuccess ? 'opacity-50 cursor-not-allowed bg-slate-200' :
-                  embedSuccess ? 'bg-indigo-600' : 'bg-slate-200'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    embedSuccess ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full mx-auto">
+              {/* Card 1: RubikChat Widget */}
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between h-40 hover:border-slate-300 transition-all duration-200">
+                <div className="flex items-start justify-between h-full">
+                  <div className="flex flex-col pr-4 justify-between h-full">
+                    <div>
+                      <span className="text-sm font-semibold text-slate-900 block">RubikChat Widget</span>
+                      <span className="text-xs text-slate-500 mt-2 block leading-relaxed max-w-xs">
+                        Show floating AI chat widget on storefront.
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleToggleWidget}
+                    disabled={isEmbedding}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      embedSuccess ? 'bg-indigo-600' : 'bg-slate-200'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        embedSuccess ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
 
-            {/* Actions Toggle Switches */}
-            {createAgentSuccess && actions && actions.length > 0 && (
-              <div className="border-t border-slate-100 pt-6 mt-6 space-y-4">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">AI Agent Functions</h4>
-                {actions.map((act) => (
-                  <div key={act.action_slug} className="flex items-start justify-between py-2 border-b border-slate-50 last:border-0">
-                    <div className="flex flex-col pr-4">
-                      <span className="text-sm font-semibold text-slate-900">{act.name}</span>
-                      <span className="text-xs text-slate-500 mt-1 leading-relaxed">{act.description}</span>
+              {/* MCP Action Cards */}
+              {actions.map((act) => (
+                <div key={act.action_slug} className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between h-40 hover:border-slate-300 transition-all duration-200">
+                  <div className="flex items-start justify-between h-full">
+                    <div className="flex flex-col pr-4 justify-between h-full">
+                      <div>
+                        <span className="text-sm font-semibold text-slate-900 block">{act.name}</span>
+                        <span className="text-xs text-slate-500 mt-2 block leading-relaxed max-w-xs">
+                          {getDisplayDescription(act.name)}
+                        </span>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleToggleAction(act.action_slug, act.status)}
@@ -346,10 +368,10 @@ export default function FunctionsPage() {
                       />
                     </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
