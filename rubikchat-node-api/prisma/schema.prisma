@@ -100,3 +100,16 @@ model api_logs {
   response   String?
   created_at DateTime @default(now())
 }
+
+model rubikchat_actions {
+  id          String   @id @default(cuid())
+  agent_id    String
+  name        String
+  action_slug String
+  description String
+  status      Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@unique([agent_id, action_slug])
+}

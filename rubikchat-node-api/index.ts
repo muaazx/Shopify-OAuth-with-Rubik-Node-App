@@ -732,11 +732,25 @@ app.get('/api/status', async (req, res) => {
 
     const widgetEmbedded = shopifyIntegration.status === 'widget_enabled';
 
+    let actions: any[] = [];
+    if (shopifyIntegration.rubik_agent_id) {
+      actions = await prisma.rubikchat_actions.findMany({
+        where: { agent_id: shopifyIntegration.rubik_agent_id },
+        select: {
+          name: true,
+          action_slug: true,
+          description: true,
+          status: true,
+        }
+      });
+    }
+
     return res.json({
       shopifyConnected: true,
       rubikchatConnected: !!rubikchatIntegration,
       widgetEmbedded,
       agentCreated: !!shopifyIntegration.rubik_agent_id,
+      actions,
       shopDetails: {
         store_name: shopifyIntegration.store_name,
       }
@@ -746,6 +760,77 @@ app.get('/api/status', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch status' });
   }
 });
+
+// POST /api/shopify/toggle-action
+app.post('/api/shopify/toggle-action', async (req: express.Request, res: express.Response) => {
+  const { shop, action_slug, status } = req.body;
+  if (!shop || !action_slug || status === undefined) {
+    return res.status(400).json({ error: 'Missing required parameters: shop, action_slug, and status' });
+  }
+
+  try {
+    const shopifyRecord = await prisma.shopify_integrations.findUnique({
+      where: { store_url: shop },
+    });
+
+    const orgRecord = await prisma.rubikchat_organizations.findUnique({
+      where: { store_url: shop },
+    });
+
+    if (!shopifyRecord || !orgRecord || !orgRecord.token || !shopifyRecord.rubik_agent_id) {
+      return res.status(404).json({ error: 'Shopify integration or RubikChat agent session not found.' });
+    }
+
+    const agentId = shopifyRecord.rubik_agent_id;
+
+    // Find the action config to extract description
+    const actionRecord = await prisma.rubikchat_actions.findUnique({
+      where: {
+        agent_id_action_slug: {
+          agent_id: agentId,
+          action_slug: action_slug,
+        }
+      }
+    });
+
+    if (!actionRecord) {
+      return res.status(404).json({ error: `Action '${action_slug}' not found in database.` });
+    }
+
+    // Format description and slug: "{description} {action_slug}"
+    const instructions = `${actionRecord.description} ${actionRecord.action_slug}`;
+
+    console.log(`🌐 [TOGGLE ACTION] Calling RubikChat apply-action API for ${action_slug}...`);
+    const rubikResponse = await axios.post('https://api-proxy-v1.rubikchat.com/api/apply-action', {
+      action_slug: action_slug,
+      status: status,
+      instructions: instructions,
+      chatbot_id: agentId
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${orgRecord.token}`
+      }
+    });
+
+    // Update local database status
+    await prisma.rubikchat_actions.update({
+      where: {
+        agent_id_action_slug: {
+          agent_id: agentId,
+          action_slug: action_slug,
+        }
+      },
+      data: { status: status }
+    });
+
+    return res.json({ success: true, status: status, data: rubikResponse.data });
+  } catch (error: any) {
+    console.error(`Error toggling action ${action_slug}:`, error.response?.data || error.message);
+    return res.status(500).json({ error: 'Failed to toggle action status', details: error.response?.data || error.message });
+  }
+});
+
 
 // POST /api/verify-oauth-session
 app.post('/api/verify-oauth-session', async (req: express.Request, res: express.Response) => {

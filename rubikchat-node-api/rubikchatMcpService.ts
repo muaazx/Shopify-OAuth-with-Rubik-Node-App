@@ -297,33 +297,7 @@ export async function setupShopifyMcpForAgent({
   ];
 
   // -------------------------------------------------------------
-  // STEP 3: Execute Step 2 API sequentially for all 3 actions & collect Action IDs
-  // -------------------------------------------------------------
-  const createdActionIds: number[] = [];
-
-  for (const actionPayload of actionsPayloads) {
-    try {
-      const response = await axios.post(
-        `${RUBIKCHAT_BASE_URL}/save-mcp-api-configs`,
-        actionPayload,
-        { headers }
-      );
-
-      const rawActionId = response.data?.id || response.data?.data?.id || response.data?.action?.id;
-      if (rawActionId !== undefined && rawActionId !== null) {
-        const numId = Number(rawActionId);
-        createdActionIds.push(numId);
-        console.log(`✅ [MCP AUTO-SETUP] Created action "${actionPayload.name}" with ID: ${numId}`);
-      } else {
-        console.warn(`⚠️ [MCP AUTO-SETUP] Action "${actionPayload.name}" created but no ID in response:`, response.data);
-      }
-    } catch (actionErr: any) {
-      console.error(`❌ [MCP AUTO-SETUP] Failed to create action "${actionPayload.name}":`, actionErr?.response?.data || actionErr.message);
-    }
-  }
-
-  // -------------------------------------------------------------
-  // STEP 4: Import / Link all 3 Action IDs to the Agent Chatbot
+  // STEP 3: Resolve targetAgentId early to map created actions to the agent in database
   // -------------------------------------------------------------
   let targetAgentId = agentId;
   if (!targetAgentId) {
@@ -340,6 +314,66 @@ export async function setupShopifyMcpForAgent({
     }
   }
 
+  // -------------------------------------------------------------
+  // STEP 4: Execute Step 2 API sequentially for all 3 actions & collect Action IDs
+  // -------------------------------------------------------------
+  const createdActionIds: number[] = [];
+
+  for (const actionPayload of actionsPayloads) {
+    try {
+      const response = await axios.post(
+        `${RUBIKCHAT_BASE_URL}/save-mcp-api-configs`,
+        actionPayload,
+        { headers }
+      );
+
+      const rawActionId = response.data?.id || response.data?.data?.id || response.data?.action?.id;
+      const actionSlug = response.data?.action_slug || response.data?.data?.action_slug || response.data?.action?.action_slug;
+      const actionDesc = response.data?.description || response.data?.data?.description || response.data?.action?.description || actionPayload.description;
+
+      if (rawActionId !== undefined && rawActionId !== null) {
+        const numId = Number(rawActionId);
+        createdActionIds.push(numId);
+        console.log(`✅ [MCP AUTO-SETUP] Created action "${actionPayload.name}" with ID: ${numId}`);
+      } else {
+        console.warn(`⚠️ [MCP AUTO-SETUP] Action "${actionPayload.name}" created but no ID in response:`, response.data);
+      }
+
+      // Save action_slug and description in the database
+      if (targetAgentId && actionSlug) {
+        try {
+          await prisma.rubikchat_actions.upsert({
+            where: {
+              agent_id_action_slug: {
+                agent_id: targetAgentId,
+                action_slug: actionSlug,
+              }
+            },
+            update: {
+              name: actionPayload.name,
+              description: actionDesc || "",
+            },
+            create: {
+              agent_id: targetAgentId,
+              action_slug: actionSlug,
+              name: actionPayload.name,
+              description: actionDesc || "",
+              status: true,
+            }
+          });
+          console.log(`💾 Saved action "${actionPayload.name}" with slug "${actionSlug}" to database.`);
+        } catch (dbErr: any) {
+          console.error(`⚠️ Failed to save action config to database:`, dbErr.message);
+        }
+      }
+    } catch (actionErr: any) {
+      console.error(`❌ [MCP AUTO-SETUP] Failed to create action "${actionPayload.name}":`, actionErr?.response?.data || actionErr.message);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // STEP 5: Import / Link all 3 Action IDs to the Agent Chatbot
+  // -------------------------------------------------------------
   let importedResult = null;
   if (targetAgentId && createdActionIds.length > 0) {
     console.log(`🔗 [MCP AUTO-SETUP] Linking Action IDs [${createdActionIds.join(', ')}] to Agent ID (${targetAgentId})...`);

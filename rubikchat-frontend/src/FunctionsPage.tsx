@@ -15,6 +15,8 @@ export default function FunctionsPage() {
   const [createAgentSuccess, setCreateAgentSuccess] = useState<boolean>(agentJustCreated);
   const [storeName, setStoreName] = useState<string>('');
   const [showSuccessBanner, setShowSuccessBanner] = useState<boolean>(agentJustCreated);
+  const [actions, setActions] = useState<Array<{ name: string; action_slug: string; description: string; status: boolean }>>([]);
+  const [togglingActionSlug, setTogglingActionSlug] = useState<string | null>(null);
 
   // Clean up the agentCreated param from URL after reading it
   useEffect(() => {
@@ -79,6 +81,9 @@ export default function FunctionsPage() {
           if (data.agentCreated) {
             setCreateAgentSuccess(true);
           }
+          if (data.actions) {
+            setActions(data.actions);
+          }
         })
         .catch(console.error);
     }
@@ -108,6 +113,40 @@ export default function FunctionsPage() {
       console.error('Network error while toggling widget preference:', err);
     } finally {
       setIsEmbedding(false);
+    }
+  };
+
+  const handleToggleAction = async (actionSlug: string, currentStatus: boolean) => {
+    if (!shop || !createAgentSuccess) return;
+    
+    setTogglingActionSlug(actionSlug);
+    
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://rubik-chat-lead-gen-node-server-backend-production-0f28.up.railway.app';
+      const res = await fetch(`${backendUrl}/api/shopify/toggle-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop,
+          action_slug: actionSlug,
+          status: !currentStatus
+        }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActions(prev => prev.map(act => 
+          act.action_slug === actionSlug ? { ...act, status: !currentStatus } : act
+        ));
+      } else {
+        console.error('Failed to toggle action status:', data.error);
+        alert(data.error || 'Failed to toggle function status');
+      }
+    } catch (err) {
+      console.error('Network error while toggling action:', err);
+      alert('Network error while toggling function status');
+    } finally {
+      setTogglingActionSlug(null);
     }
   };
 
@@ -282,6 +321,34 @@ export default function FunctionsPage() {
                 />
               </button>
             </div>
+
+            {/* Actions Toggle Switches */}
+            {createAgentSuccess && actions && actions.length > 0 && (
+              <div className="border-t border-slate-100 pt-6 mt-6 space-y-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">AI Agent Functions</h4>
+                {actions.map((act) => (
+                  <div key={act.action_slug} className="flex items-start justify-between py-2 border-b border-slate-50 last:border-0">
+                    <div className="flex flex-col pr-4">
+                      <span className="text-sm font-semibold text-slate-900">{act.name}</span>
+                      <span className="text-xs text-slate-500 mt-1 leading-relaxed">{act.description}</span>
+                    </div>
+                    <button
+                      onClick={() => handleToggleAction(act.action_slug, act.status)}
+                      disabled={togglingActionSlug !== null}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        act.status ? 'bg-indigo-600' : 'bg-slate-200'
+                      } ${togglingActionSlug !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          act.status ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
