@@ -88,21 +88,26 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Get Shopify Products",
       description:
-        "CRITICAL ACTION: Call this tool whenever a user asks about available products, store catalog, pricing, or product variants/options (e.g., sizes, colors, gift card denominations).\n\n" +
-        "MANDATORY VARIANT & DISPLAY RULES:\n\n" +
-        "Inspect variants Array: For every product in the tool response, you MUST inspect the variants array.\n\n" +
-        "Multi-Variant Products: If variants contains more than 1 item OR has custom option titles (e.g., \"$10\", \"$25\", \"Ice\", \"Dawn\", \"Small\", \"Red\"):\n" +
-        "You MUST list EVERY single variant option along with its price in a bulleted list.\n" +
-        "NEVER summarize, truncate, or display only the first variant.\n\n" +
-        "Single-Variant Products: If the product has only 1 variant named \"Default Title\", simply display the base product price.\n\n" +
-        "No Assumption Policy: Never say \"I don't have variant information\" if the variants array is present in the response data.\n\n" +
+        "CRITICAL ACTION: Call this tool when a user asks about available products, store catalog items, pricing, or product variants/options (e.g., sizes, colors, gift card denominations).\n\n" +
+        "MANDATORY CATALOG & VARIANT DISPLAY RULES:\n\n" +
+        "Catalog Overview Requests (\"Show all items\" / \"List products\"):\n\n" +
+        "You MUST iterate through ALL products returned in the catalog payload.\n\n" +
+        "For every product, inspect its variants array.\n\n" +
+        "If a product has multiple variants (e.g., Gift Card denominations, T-Shirt sizes, colors), list ALL available variant options and their prices beneath that product title.\n\n" +
+        "If a product has only 1 variant named \"Default Title\", simply display the main product price.\n\n" +
+        "Single Product / Variant Requests:\n\n" +
+        "If the user asks about a specific product or its variants (e.g., \"any variants in Gift Card?\"), list EVERY single variant option in the variants array with its price.\n\n" +
+        "Never default to showing only the first item in the variants array.\n\n" +
+        "Never state \"I don't have variant information\" if variants exist in the payload.\n\n" +
         "REQUIRED RESPONSE FORMAT:\n\n" +
-        "[Product Title]\n" +
-        "Price: [Base Price]\n" +
-        "Available Options:\n" +
-        "* [Variant Title 1] — [Price 1]\n" +
-        "* [Variant Title 2] — [Price 2]\n" +
-        "* [Variant Title 3] — [Price 3]",
+        "[Product Title 1]\n" +
+        "Price: [Base Price]\n\n" +
+        "Available Options:\n\n" +
+        "[Variant Title 1] — [Price 1]\n\n" +
+        "[Variant Title 2] — [Price 2]\n\n" +
+        "[Variant Title 3] — [Price 3]\n\n" +
+        "[Product Title 2]\n" +
+        "Price: [Base Price] (If only 1 default variant exists, omit the list below)",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/products",
