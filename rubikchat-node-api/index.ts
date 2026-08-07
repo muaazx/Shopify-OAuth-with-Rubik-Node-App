@@ -1945,6 +1945,11 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
 
           // Match by variant title if provided
           let matchedVariant = null;
+
+          // Build a combined search string from variant_title and product_name for digit extraction
+          const rawVariantStr = `${itemVariantTitle || ""} ${itemProductName || ""}`;
+          const extractedNumber = rawVariantStr.match(/\d+/)?.[0]; // e.g., "100", "50", "25"
+
           if (itemVariantTitle && allVariants.length > 1) {
             const normalize = (s: string) => s.toLowerCase().replace(/[$\s]/g, "");
             const searchNorm = normalize(itemVariantTitle);
@@ -1962,7 +1967,16 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
               })?.node;
             }
           }
-          // Fallback to first variant only if no variant title was requested
+
+          // Digit-extraction fallback: match extracted number against variant title digits
+          if (!matchedVariant && extractedNumber && allVariants.length > 1) {
+            matchedVariant = allVariants.find((vEdge: any) => {
+              const vDigits = vEdge.node.title.match(/\d+/)?.[0];
+              return vDigits === extractedNumber || vEdge.node.title.includes(extractedNumber);
+            })?.node;
+          }
+
+          // Fallback to first variant only if no variant match was found at all
           if (!matchedVariant) {
             matchedVariant = allVariants[0]?.node;
           }

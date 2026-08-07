@@ -220,11 +220,17 @@ export async function setupShopifyMcpForAgent({
       organization_mcp_api: mcpApiId,
       name: "Create Shopify Cart and Checkout URL",
       description:
-        "CRITICAL ACTION: Used to generate a multi-item checkout permalink.\n" +
-        "STRICT VARIANT SELECTION MANDATES:\n" +
-        "1. ALWAYS Pass `variant_title`: For ANY product that has options/variants (e.g., Gift Cards with $10, $25, $50, $100 denominations), you MUST pass the user's chosen option in the `variant_title` field (e.g., variant_title: \"$50\").\n" +
-        "2. Context Memory: If the user previously specified an option (e.g. \"$50 Gift Card\") and then simply confirms with \"yes\" or \"order this\", you MUST remember that choice and pass variant_title: \"$50\".\n" +
-        "3. FORBIDDEN: NEVER send {\"product_name\": \"Gift Card\"} alone without variant_title or variant_id for multi-option products.",
+        "CRITICAL ACTION: Generates a Shopify checkout permalink.\n\n" +
+        "PARAMETER REQUIREMENTS:\n" +
+        "product_name: Pass ONLY the main product title (e.g., \"Gift Card\" or \"Selling Plans Ski Wax\").\n" +
+        "variant_title: MANDATORY for products with options. You MUST pass the specific variant choice selected by the user (e.g., \"$25\", \"$50\", \"$100\", \"Special Selling Plans Ski Wax\", \"Ice\").\n" +
+        "quantity: The number of items requested (default: 1).\n\n" +
+        "STRICT EXAMPLES:\n" +
+        "User asks for $50 Gift Card:\n" +
+        "items: [{\"product_name\": \"Gift Card\", \"variant_title\": \"$50\", \"quantity\": 1}]\n\n" +
+        "User asks for 3 of the $100 Gift Card:\n" +
+        "items: [{\"product_name\": \"Gift Card\", \"variant_title\": \"$100\", \"quantity\": 3}]\n\n" +
+        "FORBIDDEN: Never send {\"product_name\": \"Gift Card\"} without variant_title when options ($10, $25, $50, $100) exist.",
       method: "POST",
       endpoint:
         "https://shopify-oauth-with-rubik-node-app-production.up.railway.app/api/shopify/cart",
@@ -268,15 +274,15 @@ export async function setupShopifyMcpForAgent({
               properties: {
                 product_name: {
                   type: "string",
-                  description: "The name of the product (e.g. 'Gift Card'). Do not put variant names here if variant_title is used.",
+                  description: "Base product title (e.g., 'Gift Card').",
                 },
                 variant_title: {
                   type: "string",
-                  description: "MANDATORY for multi-variant products! The selected variant option name (e.g. '$50', '$25', '$100', 'Large', 'Red').",
+                  description: "MANDATORY for multi-option products. Pass the option name/denomination chosen by the user (e.g. '$100', '$50', '$25', '$10', 'Large', 'Red').",
                 },
                 variant_id: {
                   type: "string",
-                  description: "Specific numeric Shopify variant ID if known (e.g. '53226628645231').",
+                  description: "Numeric Shopify variant ID if known (e.g., '53226628677999').",
                 },
                 quantity: { type: "number" },
               },
