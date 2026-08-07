@@ -275,7 +275,7 @@ export async function setupShopifyMcpForAgent({
             type: "array",
             items: {
               type: "object",
-              required: ["product_name", "quantity"],
+              required: ["product_name", "variant_title", "quantity"],
               properties: {
                 product_name: {
                   type: "string",
@@ -284,10 +284,6 @@ export async function setupShopifyMcpForAgent({
                 variant_title: {
                   type: "string",
                   description: "MANDATORY for multi-option products. Pass the option name/denomination chosen by the user (e.g. '$100', '$50', '$25', '$10', 'Large', 'Red').",
-                },
-                variant_id: {
-                  type: "string",
-                  description: "Numeric Shopify variant ID if known (e.g., '53226628677999').",
                 },
                 quantity: { type: "number" },
               },

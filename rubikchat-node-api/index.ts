@@ -1878,14 +1878,6 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
         }
       }
 
-      if (rawVariantId) {
-        const cleanId = rawVariantId.replace(/\D/g, "");
-        if (cleanId) {
-          resolvedItems.push({ variant_id: cleanId, quantity: itemQty });
-          continue;
-        }
-      }
-
       // Derive the clean product search name (strip variant suffix if we parsed it)
       const searchProductName = itemVariantTitle
         ? itemProductName.replace(/\s*[-–—(]\s*\$?\d.*$/, "").trim() || itemProductName
@@ -1943,37 +1935,48 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
           const productNode = productEdges[0].node;
           const allVariants = productNode.variants?.edges || [];
 
-          // Match by variant title if provided
           let matchedVariant = null;
 
-          // Build a combined search string from variant_title and product_name for digit extraction
-          const rawVariantStr = `${itemVariantTitle || ""} ${itemProductName || ""}`;
-          const extractedNumber = rawVariantStr.match(/\d+/)?.[0]; // e.g., "100", "50", "25"
-
-          if (itemVariantTitle && allVariants.length > 1) {
-            const normalize = (s: string) => s.toLowerCase().replace(/[$\s]/g, "");
-            const searchNorm = normalize(itemVariantTitle);
-
-            // Exact normalized match first
-            matchedVariant = allVariants.find((vEdge: any) =>
-              normalize(vEdge.node.title) === searchNorm
-            )?.node;
-
-            // Fuzzy: check if either contains the other
-            if (!matchedVariant) {
-              matchedVariant = allVariants.find((vEdge: any) => {
-                const vNorm = normalize(vEdge.node.title);
-                return vNorm.includes(searchNorm) || searchNorm.includes(vNorm);
-              })?.node;
-            }
+          // 1. If variant_id is provided, validate it against the product's actual variants
+          if (rawVariantId) {
+            const cleanId = rawVariantId.replace(/\D/g, "");
+            matchedVariant = allVariants.find((vEdge: any) => {
+              const vId = vEdge.node.id.split("/").pop();
+              return vId === cleanId;
+            })?.node;
           }
 
-          // Digit-extraction fallback: match extracted number against variant title digits
-          if (!matchedVariant && extractedNumber && allVariants.length > 1) {
-            matchedVariant = allVariants.find((vEdge: any) => {
-              const vDigits = vEdge.node.title.match(/\d+/)?.[0];
-              return vDigits === extractedNumber || vEdge.node.title.includes(extractedNumber);
-            })?.node;
+          // 2. If variant_id was absent or did not belong to the product, match via variant_title
+          if (!matchedVariant) {
+            // Build a combined search string from variant_title and product_name for digit extraction
+            const rawVariantStr = `${itemVariantTitle || ""} ${itemProductName || ""}`;
+            const extractedNumber = rawVariantStr.match(/\d+/)?.[0]; // e.g., "100", "50", "25"
+
+            if (itemVariantTitle && allVariants.length > 1) {
+              const normalize = (s: string) => s.toLowerCase().replace(/[$\s]/g, "");
+              const searchNorm = normalize(itemVariantTitle);
+
+              // Exact normalized match first
+              matchedVariant = allVariants.find((vEdge: any) =>
+                normalize(vEdge.node.title) === searchNorm
+              )?.node;
+
+              // Fuzzy: check if either contains the other
+              if (!matchedVariant) {
+                matchedVariant = allVariants.find((vEdge: any) => {
+                  const vNorm = normalize(vEdge.node.title);
+                  return vNorm.includes(searchNorm) || searchNorm.includes(vNorm);
+                })?.node;
+              }
+            }
+
+            // Digit-extraction fallback: match extracted number against variant title digits
+            if (!matchedVariant && extractedNumber && allVariants.length > 1) {
+              matchedVariant = allVariants.find((vEdge: any) => {
+                const vDigits = vEdge.node.title.match(/\d+/)?.[0];
+                return vDigits === extractedNumber || vEdge.node.title.includes(extractedNumber);
+              })?.node;
+            }
           }
 
           // Fallback to first variant only if no variant match was found at all
@@ -1991,6 +1994,11 @@ app.all("/api/shopify/cart", async (req: express.Request, res: express.Response)
               });
             }
           }
+        }
+      } else if (rawVariantId) {
+        const cleanId = rawVariantId.replace(/\D/g, "");
+        if (cleanId) {
+          resolvedItems.push({ variant_id: cleanId, quantity: itemQty });
         }
       }
     }
